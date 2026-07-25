@@ -7,7 +7,6 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Request;
-use App\Core\View;
 use App\Models\User;
 
 final class AuthController extends Controller
@@ -17,7 +16,7 @@ final class AuthController extends Controller
         if (Auth::user()) {
             $this->redirect('/');
         }
-        $this->html(View::render('auth/login', ['error' => null]));
+        $this->page('auth/login', ['error' => null]);
     }
 
     public function login(): void
@@ -28,7 +27,7 @@ final class AuthController extends Controller
 
         $user = User::findByUsername($username);
         if (!$user || !$user['is_active'] || !User::verifyPassword($user, $password)) {
-            $this->html(View::render('auth/login', ['error' => 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง']));
+            $this->page('auth/login', ['error' => 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง']);
             return;
         }
         Auth::login($user);

@@ -1,7 +1,7 @@
 :root {
   --bs-primary: #1e3a8a;
   --bs-primary-rgb: 30, 58, 138;
-  --bs-body-font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+  --bs-body-font-family: "Sarabun", "Leelawadee UI", Tahoma, system-ui, sans-serif;
   --bs-body-font-size: 0.9rem;
   --brand-ink: #0f172a;
 }

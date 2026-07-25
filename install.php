@@ -172,10 +172,9 @@ $ceilingBytes = Requirements::phpUploadCeilingBytes();
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ติดตั้งระบบมอบหมายและติดตามงาน</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<style>body{font-family:"IBM Plex Sans Thai",system-ui,sans-serif;background:#f1f5f9}</style>
+<link href="public/assets/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+<link href="public/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+<style>body{font-family:"Sarabun","Leelawadee UI",Tahoma,system-ui,sans-serif;background:#f1f5f9}</style>
 </head>
 <body>
 <div class="container py-4 py-md-5" style="max-width:720px">
