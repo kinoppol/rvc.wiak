@@ -15,19 +15,41 @@ $alreadyInstalled = is_file($configFile) && is_file($lockFile);
 
 $state = $_SESSION['install'] ?? [];
 $errors = [];
+$reinstallMsg = null;
+
+function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+// ---------------------------------------------------------------------
+// Reinstall: explicitly requested from the "already installed" screen.
+// Removes config.php + install.lock only — never touches the database,
+// so existing data survives and step 2 will just reconnect to it.
+// ---------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_reinstall'])) {
+    if ($_POST['do_reinstall'] !== 'yes') {
+        $errors[] = 'กรุณายืนยันการติดตั้งใหม่โดยติ๊กเครื่องหมายยืนยันก่อน';
+    } else {
+        @unlink($configFile);
+        @unlink($lockFile);
+        $alreadyInstalled = is_file($configFile) && is_file($lockFile);
+        unset($_SESSION['install']);
+        $state = [];
+        $reinstallMsg = 'ลบการตั้งค่าเดิมแล้ว กรุณาดำเนินการติดตั้งใหม่ตามขั้นตอนด้านล่าง (ฐานข้อมูลเดิมยังคงอยู่)';
+    }
+}
+
 $step = isset($_POST['step']) ? (int) $_POST['step'] : (isset($_GET['step']) ? (int) $_GET['step'] : 1);
 $step = max(1, min(4, $step));
 
 if ($alreadyInstalled && $step < 4) {
     $step = 0; // "already installed" screen
+} elseif (!$alreadyInstalled && $reinstallMsg !== null) {
+    $step = 1; // just wiped config — go straight to step 1
 }
-
-function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
 // ---------------------------------------------------------------------
 // Step transitions (POST)
 // ---------------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['do_reinstall'])) {
     if ($step === 2) {
         // Coming from step 1: requirements + upload settings.
         $maxMb = max(1, (int) ($_POST['max_upload_mb'] ?? 10));
@@ -169,11 +191,30 @@ $ceilingBytes = Requirements::phpUploadCeilingBytes();
     <div class="alert alert-danger"><?= h($e) ?></div>
   <?php endforeach; ?>
 
+  <?php if ($reinstallMsg): ?>
+    <div class="alert alert-success"><i class="bi bi-check-circle"></i> <?= h($reinstallMsg) ?></div>
+  <?php endif; ?>
+
   <?php if ($step === 0): ?>
     <div class="card border-0 shadow-sm"><div class="card-body">
       <div class="alert alert-warning mb-3"><i class="bi bi-exclamation-triangle"></i> ระบบได้รับการติดตั้งไปแล้ว</div>
-      <p class="text-secondary" style="font-size:.9rem">พบไฟล์ <code>config/config.php</code> และ <code>config/install.lock</code> อยู่แล้ว หากต้องการติดตั้งใหม่ กรุณาลบไฟล์ทั้งสองนี้ออกจากเซิร์ฟเวอร์ก่อน (การทำเช่นนี้จะไม่ลบฐานข้อมูลเดิม)</p>
-      <a href="./" class="btn btn-primary">ไปยังหน้าเข้าสู่ระบบ</a>
+      <p class="text-secondary" style="font-size:.9rem">พบไฟล์ <code>config/config.php</code> และ <code>config/install.lock</code> อยู่แล้ว</p>
+      <a href="./" class="btn btn-primary mb-4">ไปยังหน้าเข้าสู่ระบบ</a>
+
+      <details>
+        <summary class="text-danger" style="cursor:pointer;font-size:.88rem"><i class="bi bi-arrow-repeat"></i> ต้องการติดตั้งใหม่ (Reinstall)?</summary>
+        <div class="border rounded p-3 mt-3" style="font-size:.85rem">
+          <p class="mb-2">การติดตั้งใหม่จะ<strong>ลบไฟล์ตั้งค่า</strong> <code>config/config.php</code> และ <code>config/install.lock</code> เท่านั้น — <strong>จะไม่ลบฐานข้อมูลหรือไฟล์แนบที่อัปโหลดไว้เดิม</strong> คุณจะได้ตั้งค่าการเชื่อมต่อฐานข้อมูลและขนาดไฟล์อัปโหลดใหม่อีกครั้ง (สามารถชี้ไปที่ฐานข้อมูลเดิมได้ ระบบจะไม่สร้างตารางซ้ำ)</p>
+          <form method="post">
+            <input type="hidden" name="do_reinstall" value="yes">
+            <div class="form-check mb-2">
+              <input type="checkbox" class="form-check-input" id="confirmReinstall" required>
+              <label class="form-check-label" for="confirmReinstall">ฉันเข้าใจและยืนยันต้องการติดตั้งใหม่</label>
+            </div>
+            <button type="submit" class="btn btn-outline-danger btn-sm">ลบการตั้งค่าเดิมและเริ่มติดตั้งใหม่</button>
+          </form>
+        </div>
+      </details>
     </div></div>
 
   <?php elseif ($step === 1): ?>
