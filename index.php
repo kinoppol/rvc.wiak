@@ -5,6 +5,7 @@ require __DIR__ . '/app/bootstrap.php';
 
 use App\Controllers\AdminController;
 use App\Controllers\AuthController;
+use App\Controllers\AvatarController;
 use App\Controllers\DashboardController;
 use App\Controllers\ProfileController;
 use App\Controllers\SettingsController;
@@ -39,9 +40,13 @@ $router->post('/tickets/{id}/files', [TicketController::class, 'uploadFile']);
 $router->get('/tickets/{id}/files/{fileId}', [TicketController::class, 'downloadFile']);
 
 $router->get('/admin/users', [AdminController::class, 'manageUsers']);
+$router->get('/admin/users/{id}/roles', [AdminController::class, 'editRolesForm']);
+$router->post('/admin/users/{id}/roles', [AdminController::class, 'updateRoles']);
 $router->post('/admin/impersonate/{id}', [AdminController::class, 'impersonate']);
 $router->post('/admin/impersonate-stop', [AdminController::class, 'stopImpersonating']);
 $router->get('/admin/audit', [AdminController::class, 'auditLog']);
+
+$router->get('/avatar/{id}', [AvatarController::class, 'show']);
 
 $router->get('/admin/settings', [SettingsController::class, 'index']);
 $router->post('/admin/settings/url', [SettingsController::class, 'updateUrl']);

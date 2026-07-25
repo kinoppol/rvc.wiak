@@ -28,11 +28,17 @@ CREATE TABLE IF NOT EXISTS users (
     full_name     VARCHAR(150) NOT NULL,
     email         VARCHAR(150) NULL,
     icon          VARCHAR(40)  NOT NULL DEFAULT 'person-fill',
+    avatar_path   VARCHAR(255) NULL COMMENT 'relative path under storage/uploads/avatars, downloaded from the RMS people_pic on sync',
     department    VARCHAR(150) NULL,
     is_active     TINYINT(1)   NOT NULL DEFAULT 1,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Idempotent upgrade path for databases created before avatar_path existed
+-- (schema.sql is re-run as-is on reinstall; CREATE TABLE IF NOT EXISTS above
+-- is a no-op against an existing users table).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_path VARCHAR(255) NULL AFTER icon;
 
 CREATE TABLE IF NOT EXISTS user_roles (
     user_id INT UNSIGNED NOT NULL,

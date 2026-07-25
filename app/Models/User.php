@@ -48,6 +48,29 @@ final class User
         return password_verify($password, $user['password_hash']);
     }
 
+    /** Replace a user's full set of role assignments with the given role codes. */
+    public static function setRoles(int $userId, array $roleCodes): void
+    {
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare('DELETE FROM user_roles WHERE user_id = ?')->execute([$userId]);
+            if ($roleCodes) {
+                $placeholders = implode(',', array_fill(0, count($roleCodes), '?'));
+                $ids = $pdo->prepare("SELECT id FROM roles WHERE code IN ({$placeholders})");
+                $ids->execute($roleCodes);
+                $ins = $pdo->prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)');
+                foreach ($ids->fetchAll(\PDO::FETCH_COLUMN) as $roleId) {
+                    $ins->execute([$userId, $roleId]);
+                }
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
     /**
      * Paginated, searchable, role-filterable user listing for the admin
      * user-management page.

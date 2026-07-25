@@ -68,6 +68,67 @@ final class Upload
         return self::dir() . '/' . ltrim($storedPath, '/');
     }
 
+    /**
+     * Downloads an image from an external URL (used for RMS avatar sync) and
+     * stores it as storage/uploads/avatars/{userId}.{ext}, overwriting any
+     * previous avatar for that user. Returns the relative path on success,
+     * or null if the download failed or the content isn't a real image.
+     */
+    public static function storeAvatarFromUrl(int $userId, string $url): ?string
+    {
+        if (!function_exists('curl_init')) {
+            return null;
+        }
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT => 6,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+        ]);
+        $body = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $errno = curl_errno($ch);
+        curl_close($ch);
+
+        if ($errno !== 0 || $status < 200 || $status >= 300 || !is_string($body) || $body === '') {
+            return null;
+        }
+
+        $info = @getimagesizefromstring($body);
+        if ($info === false) {
+            return null;
+        }
+        $ext = match ($info['mime'] ?? '') {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            default => null,
+        };
+        if ($ext === null) {
+            return null;
+        }
+
+        $subdir = self::dir() . '/avatars';
+        if (!is_dir($subdir) && !mkdir($subdir, 0755, true) && !is_dir($subdir)) {
+            return null;
+        }
+
+        // Remove any previous avatar for this user under a different extension.
+        foreach (glob($subdir . '/' . $userId . '.*') ?: [] as $old) {
+            @unlink($old);
+        }
+
+        $relative = 'avatars/' . $userId . '.' . $ext;
+        if (file_put_contents(self::dir() . '/' . $relative, $body) === false) {
+            return null;
+        }
+
+        return $relative;
+    }
+
     public static function humanSize(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];

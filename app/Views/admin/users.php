@@ -57,7 +57,11 @@ use App\Core\View;
           <tr>
             <td style="padding-left:18px">
               <div class="d-flex align-items-center gap-2">
-                <div style="width:32px;height:32px;border-radius:50%;background:rgba(30,58,138,.12);color:#1e3a8a;display:grid;place-items:center;flex:0 0 auto"><i class="bi bi-<?= View::e($p['icon']) ?>"></i></div>
+                <?php if (!empty($p['avatar_path'])): ?>
+                  <img src="<?= Url::to('/avatar/' . (int) $p['id']) ?>" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto" alt="">
+                <?php else: ?>
+                  <div style="width:32px;height:32px;border-radius:50%;background:rgba(30,58,138,.12);color:#1e3a8a;display:grid;place-items:center;flex:0 0 auto"><i class="bi bi-<?= View::e($p['icon']) ?>"></i></div>
+                <?php endif; ?>
                 <div style="font-size:.85rem;font-weight:500"><?= View::e($p['full_name']) ?></div>
               </div>
             </td>
@@ -75,11 +79,10 @@ use App\Core\View;
                 <span class="badge rounded-pill text-bg-secondary" style="font-weight:500">ปิดใช้งาน</span>
               <?php endif; ?>
             </td>
-            <td style="padding-right:18px;text-align:right">
+            <td style="padding-right:18px;text-align:right;white-space:nowrap">
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-open-user-roles="<?= (int) $p['id'] ?>"><i class="bi bi-person-vcard"></i> กำหนดบทบาท</button>
               <?php if (!$p['isSelf']): ?>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-impersonate-user="<?= (int) $p['id'] ?>"><i class="bi bi-person-badge"></i> สวมสิทธิ์</button>
-              <?php else: ?>
-                <span class="text-body-secondary" style="font-size:.75rem">คุณ</span>
               <?php endif; ?>
             </td>
           </tr>

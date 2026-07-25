@@ -121,6 +121,10 @@
     if (newBtn) {
       fetchHtml("/tickets/new").then(function (res) { openOverlay(res.text); });
     }
+    var editRoles = e.target.closest("[data-open-user-roles]");
+    if (editRoles) {
+      fetchHtml("/admin/users/" + editRoles.getAttribute("data-open-user-roles") + "/roles").then(function (res) { openOverlay(res.text); });
+    }
   });
 
   // Generic "action button" — POST to data-post, then refresh whatever's open.

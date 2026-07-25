@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Database;
+use App\Core\Upload;
 use App\Models\Role;
 use App\Models\Setting;
 use RuntimeException;
@@ -27,6 +28,12 @@ final class PeopleSync
      */
     public static function run(): array
     {
+        // A full sync fetches the roster plus one avatar image per person —
+        // comfortably over PHP's default execution-time limit for a list of
+        // any real size. This is an infrequent, admin-triggered action, so
+        // let it run as long as it needs to instead of being killed mid-sync.
+        @set_time_limit(0);
+
         $baseUrl = rtrim((string) Setting::get(self::SETTING_KEY, ''), '/');
         if ($baseUrl === '') {
             throw new RuntimeException('ยังไม่ได้ตั้งค่า URL ของระบบภายนอก (RMS) กรุณากำหนดที่เมนูตั้งค่าก่อน');
@@ -52,6 +59,7 @@ final class PeopleSync
             $surname = trim((string) ($p['people_surname'] ?? ''));
             $password = (string) ($p['ath_pass'] ?? '');
             $email = trim((string) ($p['people_email'] ?? ''));
+            $pic = trim((string) ($p['people_pic'] ?? ''));
 
             if ($username === '') {
                 $result['skipped']++;
@@ -75,17 +83,27 @@ final class PeopleSync
             $existingId = $existing->fetchColumn();
 
             if ($existingId !== false) {
+                $userId = (int) $existingId;
                 $upd = $pdo->prepare('UPDATE users SET password_hash = ?, full_name = ?, email = ? WHERE id = ?');
-                $upd->execute([$hash, $fullName, $email ?: null, $existingId]);
+                $upd->execute([$hash, $fullName, $email ?: null, $userId]);
                 $result['updated']++;
             } else {
                 $ins = $pdo->prepare('INSERT INTO users (username, password_hash, full_name, email, icon) VALUES (?,?,?,?,?)');
                 $ins->execute([$username, $hash, $fullName, $email ?: null, 'person-workspace']);
-                $newId = (int) $pdo->lastInsertId();
+                $userId = (int) $pdo->lastInsertId();
                 if ($staffRoleId !== null) {
-                    $pdo->prepare('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)')->execute([$newId, $staffRoleId]);
+                    $pdo->prepare('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)')->execute([$userId, $staffRoleId]);
                 }
                 $result['created']++;
+            }
+
+            if ($pic !== '') {
+                $avatarPath = Upload::storeAvatarFromUrl($userId, $baseUrl . '/files/' . ltrim($pic, '/'));
+                if ($avatarPath !== null) {
+                    $pdo->prepare('UPDATE users SET avatar_path = ? WHERE id = ?')->execute([$avatarPath, $userId]);
+                } else {
+                    $result['errors'][] = "รหัส {$username}: ดาวน์โหลดรูปโปรไฟล์ไม่สำเร็จ";
+                }
             }
         }
 

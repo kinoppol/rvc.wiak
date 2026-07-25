@@ -99,7 +99,11 @@ $isAdmin = in_array('admin', $roles, true);
             <div style="font-size:.83rem;font-weight:600"><?= View::e($user['full_name']) ?></div>
             <div style="font-size:.72rem" class="text-body-secondary"><?= View::e($roleInfo['label'] ?? '') ?></div>
           </div>
-          <div style="width:38px;height:38px;border-radius:50%;background:#1e3a8a;color:#fff;display:grid;place-items:center;font-size:1rem"><i class="bi bi-<?= View::e($roleInfo['icon'] ?? 'person-fill') ?>"></i></div>
+          <?php if (!empty($user['avatar_path'])): ?>
+            <img src="<?= Url::to('/avatar/' . (int) $user['id']) ?>" style="width:38px;height:38px;border-radius:50%;object-fit:cover" alt="">
+          <?php else: ?>
+            <div style="width:38px;height:38px;border-radius:50%;background:#1e3a8a;color:#fff;display:grid;place-items:center;font-size:1rem"><i class="bi bi-<?= View::e($roleInfo['icon'] ?? 'person-fill') ?>"></i></div>
+          <?php endif; ?>
           <form method="post" action="<?= Url::to('/logout') ?>">
             <?= Csrf::field() ?>
             <button type="submit" class="btn btn-sm btn-outline-secondary" title="ออกจากระบบ"><i class="bi bi-box-arrow-right"></i></button>
