@@ -140,6 +140,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
     CONSTRAINT fk_audit_acting_as FOREIGN KEY (acting_as_user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ---------------------------------------------------------------------
+-- settings: generic key/value app configuration, editable by admins
+-- (e.g. the base URL of the external RMS personnel system used for
+-- the people-import sync — see App\Services\PeopleSync).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS settings (
+    `key`      VARCHAR(80) NOT NULL,
+    value      TEXT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ---------------------------------------------------------------------
@@ -153,3 +165,10 @@ INSERT INTO roles (code, label, short_label, icon, chip_bg, chip_fg, hierarchy_l
 ('supervisor', 'หัวหน้างาน (Supervisor)',        'หัวหน้างาน',   'person-gear',       'rgba(16,185,129,.2)',  '#6ee7b7', 4,    0),
 ('staff',      'เจ้าหน้าที่ในงาน (Staff)',       'เจ้าหน้าที่',  'person-workspace',  'rgba(148,163,184,.22)','#cbd5e1', 5,    0)
 ON DUPLICATE KEY UPDATE label = VALUES(label);
+
+-- ---------------------------------------------------------------------
+-- Seed reference data: settings
+-- ---------------------------------------------------------------------
+INSERT INTO settings (`key`, value) VALUES
+('external_api_base_url', 'http://rms.rvc.ac.th')
+ON DUPLICATE KEY UPDATE `key` = `key`;

@@ -7,6 +7,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\ProfileController;
+use App\Controllers\SettingsController;
 use App\Controllers\TicketController;
 use App\Core\Request;
 use App\Core\Router;
@@ -37,9 +38,13 @@ $router->post('/tickets/{id}/questions/{qid}/answer', [TicketController::class, 
 $router->post('/tickets/{id}/files', [TicketController::class, 'uploadFile']);
 $router->get('/tickets/{id}/files/{fileId}', [TicketController::class, 'downloadFile']);
 
-$router->get('/admin/impersonate', [AdminController::class, 'impersonatePicker']);
+$router->get('/admin/users', [AdminController::class, 'manageUsers']);
 $router->post('/admin/impersonate/{id}', [AdminController::class, 'impersonate']);
 $router->post('/admin/impersonate-stop', [AdminController::class, 'stopImpersonating']);
 $router->get('/admin/audit', [AdminController::class, 'auditLog']);
+
+$router->get('/admin/settings', [SettingsController::class, 'index']);
+$router->post('/admin/settings/url', [SettingsController::class, 'updateUrl']);
+$router->post('/admin/settings/sync', [SettingsController::class, 'sync']);
 
 $router->dispatch(Request::method(), Request::path());

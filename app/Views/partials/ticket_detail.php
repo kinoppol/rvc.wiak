@@ -18,7 +18,7 @@ use App\Models\Ticket;
 $closed = in_array($t['status'], ['done', 'forced'], true);
 $tid = (int) $t['id'];
 ?>
-<div class="detail-overlay" data-close-overlay>
+<div class="detail-overlay">
   <div class="detail-panel">
     <div class="detail-head">
       <div class="min-w-0 flex-fill">

@@ -47,4 +47,52 @@ final class User
     {
         return password_verify($password, $user['password_hash']);
     }
+
+    /**
+     * Paginated, searchable, role-filterable user listing for the admin
+     * user-management page.
+     *
+     * @param array{q?:string,role?:string} $filters
+     * @return array{rows:array<int,array>,total:int}
+     */
+    public static function searchPaged(array $filters, int $page, int $perPage): array
+    {
+        $pdo = Database::pdo();
+        $where = [];
+        $params = [];
+
+        $q = trim($filters['q'] ?? '');
+        if ($q !== '') {
+            $where[] = '(u.full_name LIKE ? OR u.username LIKE ? OR u.email LIKE ?)';
+            $like = '%' . $q . '%';
+            array_push($params, $like, $like, $like);
+        }
+
+        $role = trim($filters['role'] ?? '');
+        if ($role !== '') {
+            $where[] = 'EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.code = ?)';
+            $params[] = $role;
+        }
+
+        $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+        $countSt = $pdo->prepare("SELECT COUNT(*) FROM users u {$whereSql}");
+        $countSt->execute($params);
+        $total = (int) $countSt->fetchColumn();
+
+        $perPage = max(1, min(100, $perPage));
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = max(1, min($page, $lastPage));
+        $offset = ($page - 1) * $perPage;
+
+        $sql = "SELECT u.* FROM users u {$whereSql} ORDER BY u.full_name LIMIT {$perPage} OFFSET {$offset}";
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $rows = $st->fetchAll();
+        foreach ($rows as &$r) {
+            $r['roles'] = self::rolesFor((int) $r['id']);
+        }
+
+        return ['rows' => $rows, 'total' => $total, 'page' => $page, 'lastPage' => $lastPage, 'perPage' => $perPage];
+    }
 }

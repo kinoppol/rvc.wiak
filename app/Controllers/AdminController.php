@@ -6,12 +6,15 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
-use App\Core\View;
+use App\Core\Request;
 use App\Models\AuditLog;
+use App\Models\Role;
 use App\Models\User;
 
 final class AdminController extends Controller
 {
+    private const USERS_PER_PAGE = 20;
+
     private function requireAdmin(): array
     {
         $user = $this->requireLogin();
@@ -22,11 +25,31 @@ final class AdminController extends Controller
         return $user;
     }
 
-    public function impersonatePicker(): void
+    public function manageUsers(): void
     {
         $this->requireAdmin();
-        $people = array_filter(User::allWithRoles(), fn ($u) => (int) $u['id'] !== (int) Auth::realUser()['id']);
-        $this->html(View::render('partials/impersonate_picker', ['people' => $people]));
+        $realId = (int) Auth::realUser()['id'];
+
+        $q = Request::str('q');
+        $role = Request::str('role');
+        $page = Request::int('page', 1);
+
+        $result = User::searchPaged(['q' => $q, 'role' => $role], $page, self::USERS_PER_PAGE);
+        $result['rows'] = array_map(
+            fn ($u) => $u + ['isSelf' => (int) $u['id'] === $realId],
+            $result['rows']
+        );
+
+        $this->page('admin/users', [
+            'pageTitle' => 'จัดการผู้ใช้และบทบาท',
+            'people' => $result['rows'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+            'lastPage' => $result['lastPage'],
+            'q' => $q,
+            'role' => $role,
+            'roles' => Role::all(),
+        ]);
     }
 
     public function impersonate(array $args): void

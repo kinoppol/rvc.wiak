@@ -4,7 +4,7 @@ declare(strict_types=1);
 final class Requirements
 {
     public const MIN_PHP = '8.0.0';
-    public const REQUIRED_EXTENSIONS = ['pdo_mysql', 'mbstring', 'fileinfo', 'json', 'session', 'openssl'];
+    public const REQUIRED_EXTENSIONS = ['pdo_mysql', 'mbstring', 'fileinfo', 'json', 'session', 'openssl', 'curl'];
 
     /** @return array<int,array{label:string,ok:bool,detail:string}> */
     public static function checks(string $uploadDir): array

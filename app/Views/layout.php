@@ -63,11 +63,14 @@ $isAdmin = in_array('admin', $roles, true);
           <i class="bi bi-speedometer2"></i><span class="flex-fill">แดชบอร์ด / ตั๋วงาน</span>
         </a>
         <?php if ($isAdmin): ?>
-        <a class="side-link" href="#" data-open-impersonate>
-          <i class="bi bi-person-badge"></i><span class="flex-fill">สวมสิทธิ์ผู้ใช้</span>
+        <a class="side-link" href="<?= Url::to('/admin/users') ?>">
+          <i class="bi bi-people-fill"></i><span class="flex-fill">จัดการผู้ใช้และบทบาท</span>
         </a>
         <a class="side-link" href="<?= Url::to('/admin/audit') ?>">
           <i class="bi bi-clock-history"></i><span class="flex-fill">Audit Log</span>
+        </a>
+        <a class="side-link" href="<?= Url::to('/admin/settings') ?>">
+          <i class="bi bi-gear"></i><span class="flex-fill">ตั้งค่าระบบ</span>
         </a>
         <?php endif; ?>
       </nav>
@@ -91,9 +94,6 @@ $isAdmin = in_array('admin', $roles, true);
           <button type="button" class="btn btn-outline-secondary" data-theme-btn="dark" title="Dark Mode"><i class="bi bi-moon-stars-fill"></i></button>
           <button type="button" class="btn btn-outline-secondary" data-theme-btn="system" title="System Default"><i class="bi bi-circle-half"></i></button>
         </div>
-        <?php if ($isAdmin): ?>
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-open-impersonate><i class="bi bi-person-badge"></i> <span class="d-none d-md-inline">สวมสิทธิ์</span></button>
-        <?php endif; ?>
         <div class="d-flex align-items-center gap-2" style="padding-left:12px;border-left:1px solid var(--bs-border-color)">
           <div class="text-end d-none d-sm-block" style="line-height:1.3">
             <div style="font-size:.83rem;font-weight:600"><?= View::e($user['full_name']) ?></div>

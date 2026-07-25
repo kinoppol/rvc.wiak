@@ -5,12 +5,13 @@ use App\Core\View;
 use App\Models\Ticket;
 /** @var array $people */
 ?>
-<div class="modal-overlay" data-close-overlay>
+<div class="modal-overlay">
   <div class="card border-0 shadow-lg" style="width:min(560px,100%);border-radius:14px;max-height:92vh;overflow-y:auto">
     <div class="card-body">
       <div class="d-flex align-items-center gap-2 mb-3">
         <i class="bi bi-plus-circle" style="font-size:1.2rem;color:#1e3a8a"></i>
-        <div style="font-weight:600">สร้างตั๋วงานใหม่</div>
+        <div style="font-weight:600" class="flex-fill">สร้างตั๋วงานใหม่</div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-close-overlay><i class="bi bi-x-lg"></i></button>
       </div>
       <form data-ajax-form action="<?= Url::to('/tickets') ?>" class="d-flex flex-column gap-3">
         <?= Csrf::field() ?>

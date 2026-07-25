@@ -44,18 +44,10 @@
   function closeOverlay() {
     document.getElementById("overlay-root").innerHTML = "";
   }
+  // Modals/drawers close only via an explicit [data-close-overlay] button —
+  // never by clicking the backdrop or pressing Escape (by design).
   document.addEventListener("click", function (e) {
-    var closer = e.target.closest("[data-close-overlay]");
-    if (!closer) return;
-    // Backdrop wrappers (.detail-overlay / .modal-overlay) should only close when the
-    // click lands on the backdrop itself, not on anything nested inside it.
-    if (closer.classList.contains("detail-overlay") || closer.classList.contains("modal-overlay")) {
-      if (e.target !== closer) return;
-    }
-    closeOverlay();
-  });
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") closeOverlay();
+    if (e.target.closest("[data-close-overlay]")) closeOverlay();
   });
 
   // `url` may be app-relative ("/tickets/5") or already base-prefixed
@@ -128,10 +120,6 @@
     var newBtn = e.target.closest("[data-open-new-ticket]");
     if (newBtn) {
       fetchHtml("/tickets/new").then(function (res) { openOverlay(res.text); });
-    }
-    var imp = e.target.closest("[data-open-impersonate]");
-    if (imp) {
-      fetchHtml("/admin/impersonate").then(function (res) { openOverlay(res.text); });
     }
   });
 
