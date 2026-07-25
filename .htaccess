@@ -1,0 +1,23 @@
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Serve real files and directories (assets, install.php, uploads download via app) as-is
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
+  # Never rewrite the installer itself
+  RewriteRule ^install\.php$ - [L]
+
+  # Everything else goes through the front controller
+  RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "same-origin"
+</IfModule>
+
+Options -Indexes

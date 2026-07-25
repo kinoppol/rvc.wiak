@@ -1,0 +1,155 @@
+-- ระบบมอบหมายและติดตามงาน (EduTask Tracking)
+-- MariaDB 10.4+ / utf8mb4
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ---------------------------------------------------------------------
+-- roles: fixed catalogue of roles a user can hold, ordered by hierarchy
+-- level (used to detect "cross-level" assignment: director=1 ... staff=5,
+-- admin=0 sits outside the normal chain of command).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS roles (
+    id            TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code          VARCHAR(20)  NOT NULL UNIQUE,
+    label         VARCHAR(100) NOT NULL,
+    short_label   VARCHAR(40)  NOT NULL,
+    icon          VARCHAR(40)  NOT NULL,
+    chip_bg       VARCHAR(40)  NOT NULL,
+    chip_fg       VARCHAR(20)  NOT NULL,
+    hierarchy_level TINYINT UNSIGNED NULL COMMENT 'NULL = outside the assignment chain (e.g. admin)',
+    is_assigner   TINYINT(1)   NOT NULL DEFAULT 0,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS users (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username      VARCHAR(60)  NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name     VARCHAR(150) NOT NULL,
+    email         VARCHAR(150) NULL,
+    icon          VARCHAR(40)  NOT NULL DEFAULT 'person-fill',
+    department    VARCHAR(150) NULL,
+    is_active     TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id INT UNSIGNED NOT NULL,
+    role_id TINYINT UNSIGNED NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_roles_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- tickets: the core work-assignment record. Status timestamps are stored
+-- individually so duration analytics (time-to-open, time-to-acknowledge,
+-- time remaining, ...) can be computed rather than hard-coded.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tickets (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code          VARCHAR(30)  NOT NULL UNIQUE,
+    title         VARCHAR(255) NOT NULL,
+    meta          VARCHAR(255) NULL,
+    description   TEXT NULL,
+    from_user_id  INT UNSIGNED NOT NULL,
+    to_user_id    INT UNSIGNED NOT NULL,
+    status        ENUM('new','ack','doing','review','submitted','done','forced') NOT NULL DEFAULT 'new',
+    priority      ENUM('urgent','high','normal') NOT NULL DEFAULT 'normal',
+    is_cross      TINYINT(1)   NOT NULL DEFAULT 0,
+    due_at        DATETIME NULL,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    opened_at     DATETIME NULL COMMENT 'first time the assignee viewed the ticket',
+    ack_at        DATETIME NULL,
+    doing_at      DATETIME NULL,
+    submitted_at  DATETIME NULL,
+    closed_at     DATETIME NULL COMMENT 'done or forced',
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_tickets_status (status),
+    KEY idx_tickets_to (to_user_id),
+    KEY idx_tickets_from (from_user_id),
+    CONSTRAINT fk_tickets_from FOREIGN KEY (from_user_id) REFERENCES users(id),
+    CONSTRAINT fk_tickets_to FOREIGN KEY (to_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ticket_files (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ticket_id     INT UNSIGNED NOT NULL,
+    name          VARCHAR(255) NOT NULL,
+    is_link       TINYINT(1)   NOT NULL DEFAULT 0,
+    url           VARCHAR(500) NULL COMMENT 'used when is_link=1',
+    stored_path   VARCHAR(255) NULL COMMENT 'relative path under storage/uploads, used when is_link=0',
+    mime          VARCHAR(120) NULL,
+    size_bytes    INT UNSIGNED NULL,
+    uploaded_by   INT UNSIGNED NOT NULL,
+    uploaded_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_files_ticket (ticket_id),
+    CONSTRAINT fk_files_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_files_user FOREIGN KEY (uploaded_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ticket_questions (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ticket_id     INT UNSIGNED NOT NULL,
+    no            SMALLINT UNSIGNED NOT NULL,
+    text          TEXT NOT NULL,
+    by_user_id    INT UNSIGNED NOT NULL,
+    at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    answer        TEXT NULL,
+    answer_by_user_id INT UNSIGNED NULL,
+    answer_at     DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_questions_ticket (ticket_id),
+    CONSTRAINT fk_questions_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_questions_by FOREIGN KEY (by_user_id) REFERENCES users(id),
+    CONSTRAINT fk_questions_answer_by FOREIGN KEY (answer_by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS ticket_timeline (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ticket_id     INT UNSIGNED NOT NULL,
+    label         VARCHAR(255) NOT NULL,
+    by_user_id    INT UNSIGNED NULL,
+    at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_timeline_ticket (ticket_id),
+    CONSTRAINT fk_timeline_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_timeline_user FOREIGN KEY (by_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- audit_log: every state-changing action, including impersonation.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_log (
+    id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    actor_user_id     INT UNSIGNED NOT NULL COMMENT 'the real, logged-in account',
+    acting_as_user_id INT UNSIGNED NULL COMMENT 'set when the action happened while impersonating',
+    action            VARCHAR(80)  NOT NULL,
+    entity_type       VARCHAR(40)  NULL,
+    entity_id         INT UNSIGNED NULL,
+    details           VARCHAR(500) NULL,
+    ip                VARCHAR(45)  NULL,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_audit_actor (actor_user_id),
+    KEY idx_audit_entity (entity_type, entity_id),
+    CONSTRAINT fk_audit_actor FOREIGN KEY (actor_user_id) REFERENCES users(id),
+    CONSTRAINT fk_audit_acting_as FOREIGN KEY (acting_as_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ---------------------------------------------------------------------
+-- Seed reference data: roles
+-- ---------------------------------------------------------------------
+INSERT INTO roles (code, label, short_label, icon, chip_bg, chip_fg, hierarchy_level, is_assigner) VALUES
+('admin',      'ผู้ดูแลระบบ (Admin)',            'Admin',        'shield-lock-fill',  'rgba(220,38,38,.18)',  '#fca5a5', NULL, 1),
+('director',   'ผู้อำนวยการ (Director)',         'ผอ.',          'award-fill',        'rgba(37,99,235,.22)',  '#93c5fd', 1,    1),
+('deputy',     'รองผู้อำนวยการ (Deputy)',        'รองผอ.',       'person-vcard-fill', 'rgba(14,165,233,.2)',  '#7dd3fc', 2,    1),
+('dept',       'หัวหน้าแผนก (Dept. Head)',       'หัวหน้าแผนก',  'buildings-fill',    'rgba(168,85,247,.2)',  '#d8b4fe', 3,    1),
+('supervisor', 'หัวหน้างาน (Supervisor)',        'หัวหน้างาน',   'person-gear',       'rgba(16,185,129,.2)',  '#6ee7b7', 4,    0),
+('staff',      'เจ้าหน้าที่ในงาน (Staff)',       'เจ้าหน้าที่',  'person-workspace',  'rgba(148,163,184,.22)','#cbd5e1', 5,    0)
+ON DUPLICATE KEY UPDATE label = VALUES(label);

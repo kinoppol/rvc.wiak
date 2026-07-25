@@ -1,0 +1,51 @@
+# ระบบมอบหมายและติดตามงาน (EduTask Tracking)
+
+เว็บแอประบบมอบหมายและติดตามงานสำหรับวิทยาลัย รองรับการใช้งานบนอุปกรณ์เคลื่อนที่ พัฒนาด้วย **PHP 8+** และ **MariaDB 10+** โดยไม่ต้องพึ่งพา framework หรือ build step ภายนอก — ติดตั้งได้ทันทีบน Apache/PHP ทั่วไป (เช่น XAMPP)
+
+การออกแบบ UI อ้างอิงจากต้นแบบ Claude Design ที่อยู่ใน [project/](project/) (ดูรายละเอียดใน [CLAUDE.md](CLAUDE.md))
+
+## คุณสมบัติหลัก
+
+- เข้าสู่ระบบ, สลับบทบาท (Admin / Director / Deputy / Dept. Head / Supervisor / Staff) ในบัญชีเดียว
+- สร้าง/มอบหมายตั๋วงาน พร้อมตรวจจับ "การสั่งงานข้ามขั้น" อัตโนมัติจากลำดับชั้นบทบาท
+- วงจรสถานะตั๋วงาน: ใหม่ → รับทราบ → ดำเนินการ → (ขอทบทวนคำสั่ง) → ส่งงาน → อนุมัติ/ปิดงาน
+- กระดานถาม-ตอบต่อรายการ พร้อม Timeline และสรุปเวลาที่ใช้ (Duration Summary) คำนวณจากเวลาจริง
+- แนบไฟล์ / ลิงก์ภายนอกต่อตั๋วงาน
+- ผู้ดูแลระบบสวมสิทธิ์ผู้ใช้อื่นได้ พร้อมบันทึก Audit Log ทุกการกระทำ
+- ธีม Light / Dark / System, รองรับหน้าจอมือถือ (sidebar แบบ off-canvas)
+
+## ความต้องการของระบบ
+
+- PHP 8.0 ขึ้นไป พร้อมส่วนขยาย: `pdo_mysql`, `mbstring`, `fileinfo`, `json`, `session`, `openssl`
+- MariaDB 10.4 ขึ้นไป (หรือ MySQL ที่รองรับ)
+- Apache พร้อม `mod_rewrite` (หรือปรับ web server อื่นให้ rewrite ทุก request ที่ไม่ใช่ไฟล์จริงไปที่ `index.php`)
+
+## การติดตั้ง
+
+1. วางไฟล์ทั้งหมดไว้ใน document root (เช่น `htdocs/rvc.wiak`)
+2. เปิดเบราว์เซอร์ไปที่ `http://<host>/install.php`
+3. ทำตามขั้นตอนของตัวติดตั้ง:
+   - **ขั้นตอนที่ 1** — ตรวจสอบ PHP เวอร์ชัน/ส่วนขยายที่จำเป็น, สิทธิ์เขียนไฟล์ในโฟลเดอร์ `storage/uploads`, และกำหนดขนาดไฟล์อัปโหลดสูงสุด
+   - **ขั้นตอนที่ 2** — กรอกข้อมูลเชื่อมต่อฐานข้อมูล MariaDB (ระบบจะสร้างฐานข้อมูลและตารางให้อัตโนมัติจาก `database/schema.sql`)
+   - **ขั้นตอนที่ 3** — สร้างบัญชีผู้ดูแลระบบเริ่มต้น
+4. เมื่อเสร็จสิ้น ระบบจะสร้างไฟล์ `config/config.php` และ `config/install.lock` — **ห้าม commit ไฟล์เหล่านี้** (มีอยู่ใน `.gitignore` แล้ว)
+
+หากต้องการติดตั้งใหม่ ให้ลบ `config/config.php` และ `config/install.lock` ก่อนเปิด `install.php` อีกครั้ง (จะไม่ลบฐานข้อมูลเดิมให้อัตโนมัติ)
+
+## โครงสร้างโปรเจกต์
+
+```
+install.php, install/        ตัวติดตั้งระบบ
+index.php                    front controller (router)
+app/Core/                    Router, Database (PDO), Auth, Csrf, Upload, View, ...
+app/Models/                  Ticket, User, Role, TicketQuestion, TicketFile, TicketTimeline, AuditLog
+app/Controllers/             Auth, Dashboard, Ticket, Admin, Profile
+app/Views/                   PHP templates (layout + partials ที่โหลดผ่าน AJAX)
+database/schema.sql          โครงสร้างฐานข้อมูล + seed บทบาท
+public/assets/               CSS/JS ที่เข้าถึงได้ตรงจากเบราว์เซอร์
+storage/uploads/             ไฟล์แนบที่อัปโหลด (สร้างอัตโนมัติ, อยู่นอก git)
+config/config.sample.php     แม่แบบไฟล์ตั้งค่า (ไฟล์จริงถูกสร้างโดยตัวติดตั้ง)
+project/                     ต้นแบบดีไซน์จาก Claude Design (อ้างอิงเท่านั้น ไม่ใช่โค้ดที่รัน)
+```
+
+ดูรายละเอียดสถาปัตยกรรมและแบบจำลองข้อมูลเพิ่มเติมใน [CLAUDE.md](CLAUDE.md)

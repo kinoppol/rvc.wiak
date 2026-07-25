@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<style>
+  :root { --bs-primary: #1e3a8a; --bs-primary-rgb: 30,58,138; --bs-body-font-family: "IBM Plex Sans Thai", system-ui, sans-serif; --bs-body-font-size: 0.9rem; --brand-ink: #0f172a; }
+  [data-bs-theme="dark"] { --bs-primary: #3b82f6; --bs-primary-rgb: 59,130,246; --bs-body-bg: #0b1220; --bs-tertiary-bg: #131c2e; }
+  body { margin: 0; font-family: var(--bs-body-font-family); }
+  .btn-primary { --bs-btn-bg: #1e3a8a; --bs-btn-border-color: #1e3a8a; --bs-btn-hover-bg: #1b3378; --bs-btn-hover-border-color: #1b3378; --bs-btn-active-bg: #16295e; }
+  [data-bs-theme="dark"] .btn-primary { --bs-btn-bg: #2563eb; --bs-btn-border-color: #2563eb; --bs-btn-hover-bg: #1d4ed8; --bs-btn-hover-border-color: #1d4ed8; }
+  a { color: #1d4ed8; text-decoration: none; }
+  a:hover { color: #0f172a; text-decoration: underline; }
+  [data-bs-theme="dark"] a { color: #7dd3fc; }
+  [data-bs-theme="dark"] a:hover { color: #bae6fd; }
+  .side-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: #cbd5e1; font-size: 0.88rem; cursor: pointer; }
+  .side-link:hover { background: rgba(255,255,255,.08); color: #fff; text-decoration: none; }
+  .side-link.active { background: #2563eb; color: #fff; }
+  .tl-item { position: relative; padding-left: 26px; padding-bottom: 18px; border-left: 2px solid var(--bs-border-color); }
+  .tl-item:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .tl-dot { position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #1e3a8a; box-shadow: 0 0 0 3px var(--bs-body-bg); }
+  [data-bs-theme="dark"] .tl-dot { background: #3b82f6; }
+  .row-hover:hover { background: var(--bs-tertiary-bg); cursor: pointer; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.5); border-radius: 8px; }
+</style>
+</helmet>
+<div style="display: flex; min-height: 100vh; background: var(--bs-body-bg); color: var(--bs-body-color)">
+
+  <aside style="width: 268px; flex: 0 0 268px; background: #0f172a; padding: 18px 14px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100vh; overflow-y: auto">
+    <div style="display: flex; align-items: center; gap: 11px; padding: 4px 6px 12px; border-bottom: 1px solid rgba(255,255,255,.1)">
+      <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg,#2563eb,#0ea5e9); display: grid; place-items: center; color: #fff; font-size: 1.1rem"><i class="bi bi-clipboard2-check-fill"></i></div>
+      <div style="line-height: 1.25">
+        <div style="color: #fff; font-weight: 600; font-size: 0.92rem">ระบบมอบหมายงาน</div>
+        <div style="color: #64748b; font-size: 0.72rem">EduTask Tracking v1.0</div>
+      </div>
+    </div>
+
+    <div>
+      <div style="color: #64748b; font-size: 0.68rem; letter-spacing: .09em; text-transform: uppercase; padding: 0 12px 8px">บทบาทที่ใช้งาน (Role Switcher)</div>
+      <select class="form-select form-select-sm" style="background: #1e293b; color: #e2e8f0; border-color: #334155" value="{{ activeRole }}" onChange="{{ onRoleChange }}">
+        <sc-for list="{{ myRoles }}" as="r" hint-placeholder-count="3">
+          <option value="{{ r.id }}">{{ r.label }}</option>
+        </sc-for>
+      </select>
+      <div style="display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 2px 0">
+        <sc-for list="{{ myRoles }}" as="r" hint-placeholder-count="3">
+          <span class="badge rounded-pill" style="background: {{ r.chipBg }}; color: {{ r.chipFg }}; font-weight: 500; font-size: 0.66rem"><i class="bi bi-{{ r.icon }}"></i> {{ r.short }}</span>
+        </sc-for>
+      </div>
+    </div>
+
+    <nav style="display: flex; flex-direction: column; gap: 3px">
+      <div style="color: #64748b; font-size: 0.68rem; letter-spacing: .09em; text-transform: uppercase; padding: 0 12px 8px">เมนูตามสิทธิ์</div>
+      <sc-for list="{{ menu }}" as="m" hint-placeholder-count="6">
+        <a class="side-link {{ m.cls }}" onClick="{{ m.onClick }}">
+          <i class="bi bi-{{ m.icon }}" style="font-size: 1rem"></i>
+          <span style="flex: 1">{{ m.label }}</span>
+          <span class="badge rounded-pill text-bg-light" style="font-size: 0.64rem">{{ m.count }}</span>
+        </a>
+      </sc-for>
+    </nav>
+
+    <div style="margin-top: auto; background: rgba(37,99,235,.12); border: 1px solid rgba(59,130,246,.3); border-radius: 10px; padding: 12px">
+      <div style="color: #93c5fd; font-size: 0.72rem; font-weight: 600; margin-bottom: 4px"><i class="bi bi-diagram-3"></i> การสั่งงานข้ามขั้น</div>
+      <div style="color: #94a3b8; font-size: 0.72rem; line-height: 1.5">เดือนนี้ {{ crossCount }} รายการ ถูกบันทึกเพื่อวิเคราะห์ภาระงานและทักษะการบริหาร</div>
+    </div>
+  </aside>
+
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+
+    <header style="position: sticky; top: 0; z-index: 20; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); padding: 12px 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+      <div style="min-width: 0">
+        <div style="font-size: 1.02rem; font-weight: 600">{{ pageTitle }}</div>
+        <div class="text-body-secondary" style="font-size: 0.76rem">วิทยาลัยเทคนิค · ปีการศึกษา 2569 · ภาคเรียนที่ 1</div>
+      </div>
+
+      <div style="flex: 1"></div>
+
+      <div class="input-group input-group-sm" style="max-width: 260px">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" class="form-control" placeholder="ค้นหารหัสตั๋ว / หัวข้องาน" value="{{ query }}" onChange="{{ onQuery }}" />
+      </div>
+
+      <div class="btn-group btn-group-sm" role="group">
+        <sc-for list="{{ themeOptions }}" as="t" hint-placeholder-count="3">
+          <button type="button" class="btn {{ t.cls }}" onClick="{{ t.onClick }}" title="{{ t.label }}"><i class="bi bi-{{ t.icon }}"></i></button>
+        </sc-for>
+      </div>
+
+      <button type="button" class="btn btn-sm btn-outline-secondary" onClick="{{ openImpersonate }}"><i class="bi bi-person-badge"></i> สวมสิทธิ์</button>
+
+      <div style="display: flex; align-items: center; gap: 10px; padding-left: 12px; border-left: 1px solid var(--bs-border-color)">
+        <div style="text-align: right; line-height: 1.3">
+          <div style="font-size: 0.83rem; font-weight: 600">{{ userName }}</div>
+          <div style="font-size: 0.72rem" class="text-body-secondary">{{ activeRoleLabel }}</div>
+        </div>
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: #1e3a8a; color: #fff; display: grid; place-items: center; font-size: 1rem"><i class="bi bi-{{ activeRoleIcon }}"></i></div>
+      </div>
+    </header>
+
+    <sc-if value="{{ impersonating }}" hint-placeholder-val="{{ false }}">
+      <div style="background: #fef3c7; color: #78350f; padding: 9px 22px; display: flex; align-items: center; gap: 12px; font-size: 0.8rem; border-bottom: 1px solid #fcd34d">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span style="flex: 1">โหมดสวมสิทธิ์ (Impersonation) — คุณกำลังใช้งานในฐานะ <strong>{{ userName }}</strong> โดยผู้ดูแลระบบ ทุกการกระทำจะถูกบันทึกในระบบตรวจสอบ</span>
+        <button type="button" class="btn btn-sm btn-dark" onClick="{{ exitImpersonation }}"><i class="bi bi-box-arrow-left"></i> ออกจากการสวมสิทธิ์</button>
+      </div>
+    </sc-if>
+
+    <main style="padding: 22px; display: flex; flex-direction: column; gap: 18px">
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px">
+        <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+          <div class="card border-0 shadow-sm" style="border-radius: 14px; overflow: hidden">
+            <div class="card-body" style="display: flex; gap: 14px; align-items: flex-start">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: {{ s.bg }}; color: {{ s.fg }}; display: grid; place-items: center; font-size: 1.15rem"><i class="bi bi-{{ s.icon }}"></i></div>
+              <div style="min-width: 0">
+                <div class="text-body-secondary" style="font-size: 0.76rem">{{ s.label }}</div>
+                <div style="font-size: 1.6rem; font-weight: 600; line-height: 1.2">{{ s.value }}</div>
+                <div style="font-size: 0.72rem" class="text-body-secondary">{{ s.hint }}</div>
+              </div>
+            </div>
+            <div style="height: 4px; background: {{ s.fg }}"></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div class="card border-0 shadow-sm" style="border-radius: 14px">
+        <div class="card-header bg-transparent" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 18px">
+          <div style="font-weight: 600; font-size: 0.95rem">รายการตั๋วงานล่าสุด</div>
+          <div class="btn-group btn-group-sm">
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+              <button type="button" class="btn {{ f.cls }}" onClick="{{ f.onClick }}">{{ f.label }}</button>
+            </sc-for>
+          </div>
+          <div style="flex: 1"></div>
+          <button type="button" class="btn btn-sm btn-primary" onClick="{{ openNew }}"><i class="bi bi-plus-lg"></i> สร้างตั๋วงานใหม่</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr style="font-size: 0.75rem">
+                <th style="padding-left: 18px">รหัสตั๋ว</th>
+                <th>หัวข้องาน</th>
+                <th>ผู้มอบหมาย → ผู้รับมอบหมาย</th>
+                <th>ความสำคัญ</th>
+                <th>สถานะ</th>
+                <th>เวลาที่ใช้ไป</th>
+                <th style="padding-right: 18px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ rows }}" as="t" hint-placeholder-count="6">
+                <tr class="row-hover" onClick="{{ t.onOpen }}">
+                  <td style="padding-left: 18px; font-family: ui-monospace, monospace; font-size: 0.78rem; white-space: nowrap">{{ t.code }}</td>
+                  <td>
+                    <div style="font-weight: 500; font-size: 0.85rem">{{ t.title }}</div>
+                    <div class="text-body-secondary" style="font-size: 0.72rem">{{ t.meta }}</div>
+                  </td>
+                  <td style="font-size: 0.78rem; white-space: nowrap">
+                    <div>{{ t.from }}</div>
+                    <div class="text-body-secondary"><i class="bi bi-arrow-return-right"></i> {{ t.to }}</div>
+                  </td>
+                  <td><span class="badge" style="background: {{ t.priBg }}; color: {{ t.priFg }}; font-weight: 500">{{ t.priority }}</span></td>
+                  <td>
+                    <span class="badge rounded-pill" style="background: {{ t.stBg }}; color: {{ t.stFg }}; font-weight: 500">{{ t.status }}</span>
+                    <sc-if value="{{ t.cross }}" hint-placeholder-val="{{ false }}">
+                      <span class="badge rounded-pill" style="background: rgba(217,119,6,.15); color: #b45309; font-weight: 500; margin-left: 4px" title="สั่งงานข้ามขั้น"><i class="bi bi-diagram-3"></i> ข้ามขั้น</span>
+                    </sc-if>
+                  </td>
+                  <td style="font-size: 0.78rem; white-space: nowrap">{{ t.elapsed }}</td>
+                  <td style="padding-right: 18px; text-align: right"><button type="button" class="btn btn-sm btn-outline-primary" onClick="{{ t.onOpen }}">เปิดตั๋ว</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <sc-if value="{{ detail }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 1050; background: rgba(8,12,22,.55); display: flex; justify-content: flex-end" onClick="{{ closeDetail }}">
+      <div style="width: min(980px, 100%); background: var(--bs-body-bg); height: 100%; overflow-y: auto; box-shadow: -14px 0 40px rgba(0,0,0,.3)" onClick="{{ stop }}">
+
+        <div style="position: sticky; top: 0; background: #0f172a; color: #fff; padding: 16px 22px; display: flex; align-items: flex-start; gap: 14px; z-index: 5">
+          <div style="min-width: 0; flex: 1">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <span style="font-family: ui-monospace, monospace; font-size: 0.78rem; background: rgba(255,255,255,.12); padding: 2px 8px; border-radius: 6px">{{ detail.code }}</span>
+              <span class="badge rounded-pill" style="background: {{ detail.stBg }}; color: {{ detail.stFg }}; font-weight: 500">{{ detail.status }}</span>
+              <span class="badge" style="background: {{ detail.priBg }}; color: {{ detail.priFg }}; font-weight: 500">ความสำคัญ: {{ detail.priority }}</span>
+            </div>
+            <div style="font-size: 1.12rem; font-weight: 600; margin-top: 7px">{{ detail.title }}</div>
+            <div style="color: #94a3b8; font-size: 0.78rem; margin-top: 3px">มอบหมายโดย {{ detail.from }} → ผู้รับผิดชอบ {{ detail.to }} · กำหนดส่ง {{ detail.due }}</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-light" onClick="{{ closeDetail }}"><i class="bi bi-x-lg"></i></button>
+        </div>
+
+        <div style="padding: 20px 22px; display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); gap: 18px; align-items: start">
+
+          <div style="display: flex; flex-direction: column; gap: 16px">
+            <div class="card border-0 shadow-sm" style="border-radius: 12px">
+              <div class="card-body">
+                <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 8px">รายละเอียดงาน</div>
+                <div class="text-body-secondary" style="font-size: 0.85rem; line-height: 1.75; text-wrap: pretty">{{ detail.description }}</div>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm" style="border-radius: 12px">
+              <div class="card-body">
+                <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 12px">เอกสารแนบ และลิงก์ภายนอก</div>
+                <div style="display: flex; flex-direction: column; gap: 8px">
+                  <sc-for list="{{ detail.files }}" as="f" hint-placeholder-count="3">
+                    <div style="display: flex; align-items: center; gap: 11px; border: 1px solid var(--bs-border-color); border-radius: 9px; padding: 9px 12px">
+                      <i class="bi bi-{{ f.icon }}" style="font-size: 1.15rem; color: {{ f.color }}"></i>
+                      <div style="flex: 1; min-width: 0">
+                        <div style="font-size: 0.82rem; font-weight: 500">{{ f.name }}</div>
+                        <div class="text-body-secondary" style="font-size: 0.72rem">{{ f.meta }}</div>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i></button>
+                    </div>
+                  </sc-for>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" style="margin-top: 12px"><i class="bi bi-paperclip"></i> แนบไฟล์ / เพิ่มลิงก์</button>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm" style="border-radius: 12px">
+              <div class="card-body">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px">
+                  <div style="font-weight: 600; font-size: 0.88rem">กระดานซักถาม / ขอทบทวนคำสั่ง</div>
+                  <span class="badge rounded-pill text-bg-secondary" style="font-weight: 500">{{ detail.questionCount }} ข้อ</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px">
+                  <sc-for list="{{ detail.questions }}" as="q" hint-placeholder-count="2">
+                    <div style="border: 1px solid var(--bs-border-color); border-radius: 11px; padding: 13px 14px; background: var(--bs-tertiary-bg)">
+                      <div style="display: flex; gap: 9px; align-items: flex-start">
+                        <span class="badge text-bg-primary" style="font-weight: 600">ข้อ {{ q.no }}</span>
+                        <div style="flex: 1; min-width: 0">
+                          <div style="font-size: 0.85rem; line-height: 1.6">{{ q.text }}</div>
+                          <div class="text-body-secondary" style="font-size: 0.72rem; margin-top: 4px">ถามโดย {{ q.by }} · {{ q.at }}</div>
+                        </div>
+                        <span class="badge rounded-pill" style="background: {{ q.stBg }}; color: {{ q.stFg }}; font-weight: 500">{{ q.stLabel }}</span>
+                      </div>
+
+                      <sc-if value="{{ q.hasAnswer }}" hint-placeholder-val="{{ true }}">
+                        <div style="margin-top: 10px; margin-left: 12px; padding: 10px 12px; border-left: 3px solid #2563eb; background: var(--bs-body-bg); border-radius: 0 9px 9px 0">
+                          <div style="font-size: 0.83rem; line-height: 1.6">{{ q.answer }}</div>
+                          <div class="text-body-secondary" style="font-size: 0.72rem; margin-top: 4px">ตอบโดย {{ q.answerBy }} · {{ q.answerAt }}</div>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ q.canAnswer }}" hint-placeholder-val="{{ true }}">
+                        <div style="margin-top: 10px; display: flex; gap: 8px; align-items: flex-start">
+                          <textarea class="form-control form-control-sm" rows="2" placeholder="พิมพ์คำตอบสำหรับข้อนี้…" value="{{ q.draft }}" onChange="{{ q.onDraft }}"></textarea>
+                          <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap" onClick="{{ q.onAnswer }}">ตอบข้อนี้</button>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="margin-top: 14px; border-top: 1px dashed var(--bs-border-color); padding-top: 14px">
+                  <div style="font-size: 0.82rem; font-weight: 600; margin-bottom: 7px">{{ composerTitle }}</div>
+                  <textarea class="form-control form-control-sm" rows="3" placeholder="{{ composerHint }}" value="{{ composer }}" onChange="{{ onComposer }}"></textarea>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onClick="{{ onAddQuestion }}"><i class="bi bi-question-circle"></i> ส่งคำถามเพิ่ม (เป็นข้อ)</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onClick="{{ onExplainOnly }}"><i class="bi bi-chat-left-text"></i> ชี้แจงเพิ่มเติมโดยไม่ตอบคำถาม</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onClick="{{ onForceClose }}"><i class="bi bi-lock"></i> สั่งปิดงานทันที</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px; position: sticky; top: 108px">
+            <div class="card border-0 shadow-sm" style="border-radius: 12px">
+              <div class="card-body">
+                <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 12px">การดำเนินการ</div>
+                <div style="display: flex; flex-direction: column; gap: 8px">
+                  <sc-for list="{{ detail.actions }}" as="a" hint-placeholder-count="3">
+                    <button type="button" class="btn btn-sm {{ a.cls }}" onClick="{{ a.onClick }}"><i class="bi bi-{{ a.icon }}"></i> {{ a.label }}</button>
+                  </sc-for>
+                </div>
+                <div class="text-body-secondary" style="font-size: 0.72rem; margin-top: 10px; line-height: 1.6">สิทธิ์ที่แสดงคำนวณจากบทบาท <strong>{{ activeRoleLabel }}</strong></div>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm" style="border-radius: 12px">
+              <div class="card-body">
+                <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 12px">สรุปเวลาที่ใช้ (Duration Summary)</div>
+                <div style="display: flex; flex-direction: column; gap: 9px">
+                  <sc-for list="{{ detail.durations }}" as="d" hint-placeholder-count="3">
+                    <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 0.8rem; padding-bottom: 8px; border-bottom: 1px dashed var(--bs-border-color)">
+                      <span class="text-body-secondary">{{ d.label }}</span>
+                      <strong>{{ d.value }}</strong>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm" style="border-radius: 12px">
+              <div class="card-body">
+                <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 14px">Timeline การดำเนินงาน</div>
+                <div>
+                  <sc-for list="{{ detail.timeline }}" as="e" hint-placeholder-count="5">
+                    <div class="tl-item">
+                      <span class="tl-dot"></span>
+                      <div style="font-size: 0.83rem; font-weight: 500">{{ e.label }}</div>
+                      <div class="text-body-secondary" style="font-size: 0.74rem">{{ e.at }} · โดย {{ e.by }}</div>
+                      <div style="font-size: 0.72rem; color: #2563eb">{{ e.gap }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showImpersonate }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 1060; background: rgba(8,12,22,.55); display: grid; place-items: center; padding: 20px" onClick="{{ closeImpersonate }}">
+      <div class="card border-0 shadow-lg" style="width: min(520px, 100%); border-radius: 14px" onClick="{{ stop }}">
+        <div class="card-body">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px">
+            <i class="bi bi-person-badge" style="font-size: 1.2rem; color: #1e3a8a"></i>
+            <div style="font-weight: 600">สวมสิทธิ์ผู้ใช้ (Impersonate User)</div>
+          </div>
+          <div class="text-body-secondary" style="font-size: 0.78rem; margin-bottom: 14px">เฉพาะผู้ดูแลระบบ · ระบบจะบันทึก Audit Log ทุกการกระทำ</div>
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <sc-for list="{{ people }}" as="p" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 11px; border: 1px solid var(--bs-border-color); border-radius: 10px; padding: 10px 12px">
+                <div style="width: 34px; height: 34px; border-radius: 50%; background: rgba(30,58,138,.12); color: #1e3a8a; display: grid; place-items: center"><i class="bi bi-{{ p.icon }}"></i></div>
+                <div style="flex: 1; min-width: 0">
+                  <div style="font-size: 0.85rem; font-weight: 500">{{ p.name }}</div>
+                  <div class="text-body-secondary" style="font-size: 0.73rem">{{ p.roles }}</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" onClick="{{ p.onPick }}">สวมสิทธิ์</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:940}}">
+const ROLES = {
+  admin: { label: "ผู้ดูแลระบบ (Admin)", short: "Admin", icon: "shield-lock-fill", chipBg: "rgba(220,38,38,.18)", chipFg: "#fca5a5" },
+  director: { label: "ผู้อำนวยการ (Director)", short: "ผอ.", icon: "award-fill", chipBg: "rgba(37,99,235,.22)", chipFg: "#93c5fd" },
+  deputy: { label: "รองผู้อำนวยการ (Deputy)", short: "รองผอ.", icon: "person-vcard-fill", chipBg: "rgba(14,165,233,.2)", chipFg: "#7dd3fc" },
+  supervisor: { label: "หัวหน้างาน (Supervisor)", short: "หัวหน้างาน", icon: "person-gear", chipBg: "rgba(16,185,129,.2)", chipFg: "#6ee7b7" },
+  staff: { label: "เจ้าหน้าที่ในงาน (Staff)", short: "เจ้าหน้าที่", icon: "person-workspace", chipBg: "rgba(148,163,184,.22)", chipFg: "#cbd5e1" },
+  dept: { label: "หัวหน้าแผนก (Dept. Head)", short: "หัวหน้าแผนก", icon: "buildings-fill", chipBg: "rgba(168,85,247,.2)", chipFg: "#d8b4fe" }
+};
+
+const MENUS = {
+  admin: [["speedometer2", "ภาพรวมระบบ", "—"], ["people-fill", "จัดการผู้ใช้และบทบาท", "248"], ["person-badge", "สวมสิทธิ์ผู้ใช้", ""], ["ticket-detailed", "ตั๋วงานทั้งหมด", "412"], ["diagram-3", "สถิติสั่งงานข้ามขั้น", "37"], ["clock-history", "Audit Log", ""], ["gear", "ตั้งค่าระบบ", ""]],
+  director: [["speedometer2", "Dashboard ภาพรวม", ""], ["send-plus", "มอบหมายงานใหม่", ""], ["ticket-detailed", "ตั๋วงานที่สั่งไว้", "86"], ["check2-square", "รออนุมัติผลงาน", "9"], ["diagram-3", "สถิติข้ามขั้น", "12"], ["bar-chart", "รายงานภาระงาน", ""]],
+  deputy: [["speedometer2", "Dashboard ภาพรวม", ""], ["send-plus", "สั่งงานหัวหน้างาน", ""], ["ticket-detailed", "ตั๋วงานในกำกับ", "54"], ["check2-square", "รออนุมัติผลงาน", "6"], ["bar-chart", "รายงานฝ่าย", ""]],
+  supervisor: [["inbox-fill", "งานที่ได้รับมอบหมาย", "14"], ["send-plus", "มอบหมายเจ้าหน้าที่", ""], ["person-check", "งานที่ทำเอง", "5"], ["upload", "รายงานผู้บริหาร", "3"], ["people", "ทีมงานในสังกัด", "8"]],
+  staff: [["inbox-fill", "งานที่ได้รับมอบหมาย", "11"], ["hourglass-split", "กำลังดำเนินการ", "4"], ["upload", "ส่งงาน / รายงานผล", "2"], ["question-circle", "คำถามที่รอคำตอบ", "1"]],
+  dept: [["speedometer2", "Dashboard แผนก", ""], ["send-plus", "มอบหมายงานครูในแผนก", ""], ["mortarboard", "ครูในแผนก", "17"], ["ticket-detailed", "ตั๋วงานแผนก", "43"]]
+};
+
+const ST = {
+  new: ["ใหม่ / รอรับทราบ", "rgba(37,99,235,.15)", "#1d4ed8"],
+  ack: ["รับทราบแล้ว", "rgba(14,165,233,.15)", "#0369a1"],
+  doing: ["กำลังดำเนินการ", "rgba(217,119,6,.15)", "#b45309"],
+  review: ["ขอทบทวนคำสั่ง", "rgba(168,85,247,.15)", "#7e22ce"],
+  submitted: ["ส่งงานแล้ว รออนุมัติ", "rgba(99,102,241,.15)", "#4338ca"],
+  done: ["เสร็จสิ้น / อนุมัติ", "rgba(16,185,129,.15)", "#047857"],
+  forced: ["ปิดงานโดยคำสั่ง", "rgba(100,116,139,.18)", "#475569"]
+};
+const PRI = {
+  urgent: ["ด่วนที่สุด", "rgba(220,38,38,.15)", "#b91c1c"],
+  high: ["ด่วน", "rgba(234,88,12,.15)", "#c2410c"],
+  normal: ["ปกติ", "rgba(100,116,139,.16)", "#475569"]
+};
+
+const TICKETS = [
+  {
+    id: 1, code: "TK-2026-001", title: "จัดทำรายงานประเมินตนเอง (SAR) ปีการศึกษา 2568", meta: "งานประกันคุณภาพ · แผนกสามัญสัมพันธ์",
+    from: "นายสมชาย ผอ.วิทยาลัย", to: "นางสาววิภา (เจ้าหน้าที่งานประกันฯ)", status: "review", priority: "urgent", cross: true,
+    due: "31 ก.ค. 2569 16:30", elapsed: "3 วัน 4 ชม.",
+    description: "รวบรวมข้อมูลผลการดำเนินงานตามมาตรฐานการอาชีวศึกษาทั้ง 3 มาตรฐาน จัดทำรูปเล่ม SAR ฉบับสมบูรณ์ พร้อมไฟล์นำเสนอสำหรับคณะกรรมการประเมินภายนอก โดยให้อ้างอิงข้อมูลนักเรียนนักศึกษาจากระบบ ศธ.02 และผลการมีงานทำของผู้สำเร็จการศึกษา",
+    files: [
+      { icon: "file-earmark-pdf-fill", color: "#dc2626", name: "แบบฟอร์ม-SAR-2568.pdf", meta: "PDF · 2.4 MB · อัปโหลด 22 ก.ค. 2569" },
+      { icon: "file-earmark-excel-fill", color: "#16a34a", name: "ข้อมูลผู้สำเร็จการศึกษา.xlsx", meta: "Excel · 780 KB · อัปโหลด 22 ก.ค. 2569" },
+      { icon: "link-45deg", color: "#2563eb", name: "ระบบฐานข้อมูล ศธ.02 (ลิงก์ภายนอก)", meta: "External Link · std2018.vec.go.th" }
+    ],
+    questions: [
+      { no: 1, text: "ข้อมูลผลการมีงานทำของผู้สำเร็จการศึกษา ให้ใช้ข้อมูลปีการศึกษา 2567 หรือ 2568 ครับ", by: "นางสาววิภา", at: "23 ก.ค. 2569 09:14", answer: "ใช้ข้อมูลปีการศึกษา 2567 เป็นฐาน และแนบข้อมูลปี 2568 เป็นภาคผนวก", answerBy: "นายสมชาย ผอ.", answerAt: "23 ก.ค. 2569 11:29" },
+      { no: 2, text: "รูปเล่มต้องจัดพิมพ์กี่ชุด และต้องเข้าเล่มแบบไหน", by: "นางสาววิภา", at: "23 ก.ค. 2569 09:16", answer: "" },
+      { no: 3, text: "ขออนุญาตขยายกำหนดส่งเป็นวันที่ 5 ส.ค. เนื่องจากรอข้อมูลจากงานทะเบียน", by: "นางสาววิภา", at: "23 ก.ค. 2569 09:20", answer: "" }
+    ],
+    timeline: [
+      { label: "ผอ. สร้างและมอบหมายตั๋วงาน (ข้ามขั้น: ผอ. → เจ้าหน้าที่)", at: "22 ก.ค. 2569 08:45", by: "นายสมชาย ผอ.", gap: "" },
+      { label: "ผู้รับมอบหมายเปิดอ่านครั้งแรก", at: "22 ก.ค. 2569 11:00", by: "นางสาววิภา", gap: "+2 ชม. 15 นาที หลังสั่งงาน" },
+      { label: "กดรับทราบ (Acknowledge) และเริ่มดำเนินงาน", at: "22 ก.ค. 2569 11:12", by: "นางสาววิภา", gap: "+12 นาที หลังเปิดอ่าน" },
+      { label: "ส่งคำถามขอทบทวนคำสั่ง 3 ข้อ", at: "23 ก.ค. 2569 09:20", by: "นางสาววิภา", gap: "+22 ชม. 8 นาที" },
+      { label: "ผู้มอบหมายตอบคำถามข้อ 1", at: "23 ก.ค. 2569 11:29", by: "นายสมชาย ผอ.", gap: "+2 ชม. 9 นาที" },
+      { label: "รอคำตอบข้อ 2–3 / งานอยู่ระหว่างดำเนินการ", at: "สถานะปัจจุบัน", by: "ระบบ", gap: "ค้างมาแล้ว 1 วัน 6 ชม." }
+    ],
+    durations: [
+      { label: "เวลาที่ใช้ในการเปิดอ่าน", value: "2 ชม. 15 นาที" },
+      { label: "เวลาที่ใช้ในการตอบรับงาน", value: "2 ชม. 27 นาที" },
+      { label: "เวลาตอบคำถามเฉลี่ย (ผู้มอบหมาย)", value: "2 ชม. 9 นาที" },
+      { label: "เวลารวมในการดำเนินการ", value: "3 วัน 4 ชม." },
+      { label: "คงเหลือถึงกำหนดส่ง", value: "5 วัน 8 ชม." }
+    ]
+  },
+  { id: 2, code: "TK-2026-002", title: "เตรียมข้อมูลนักเรียนเข้าใหม่สำหรับพิธีปฐมนิเทศ", meta: "งานทะเบียน · กำหนดส่ง 28 ก.ค.", from: "นางอรุณี รองผอ.ฝ่ายวิชาการ", to: "นายกิตติ (หัวหน้างานทะเบียน)", status: "doing", priority: "high", cross: false, due: "28 ก.ค. 2569 12:00", elapsed: "1 วัน 2 ชม." },
+  { id: 3, code: "TK-2026-003", title: "ซ่อมบำรุงเครื่องปรับอากาศอาคาร 3 ชั้น 2", meta: "งานอาคารสถานที่", from: "นายกิตติ (หัวหน้างานอาคาร)", to: "นายกิตติ (ดำเนินการเอง)", status: "submitted", priority: "normal", cross: true, due: "26 ก.ค. 2569 17:00", elapsed: "6 ชม. 40 นาที" },
+  { id: 4, code: "TK-2026-004", title: "จัดทำแผนการสอนรายวิชา ภาคเรียนที่ 1/2569", meta: "แผนกช่างยนต์ · ครู 6 คน", from: "นายประเสริฐ (หัวหน้าแผนกช่างยนต์)", to: "ครูในแผนกช่างยนต์ (6 คน)", status: "ack", priority: "normal", cross: false, due: "5 ส.ค. 2569 16:30", elapsed: "18 ชม. 5 นาที" },
+  { id: 5, code: "TK-2026-005", title: "สรุปรายงานการเบิกจ่ายงบประมาณไตรมาส 3", meta: "งานการเงิน", from: "นายสมชาย ผอ.วิทยาลัย", to: "นางสุดา รองผอ.ฝ่ายบริหารทรัพยากร", status: "done", priority: "high", cross: false, due: "20 ก.ค. 2569 16:30", elapsed: "2 วัน 3 ชม." },
+  { id: 6, code: "TK-2026-006", title: "ประสานงานสถานประกอบการรับนักศึกษาฝึกงาน", meta: "งานทวิภาคี", from: "นางอรุณี รองผอ.ฝ่ายวิชาการ", to: "นางสาวพิมพ์ (เจ้าหน้าที่งานทวิภาคี)", status: "new", priority: "urgent", cross: true, due: "27 ก.ค. 2569 09:00", elapsed: "1 ชม. 20 นาที" },
+  { id: 7, code: "TK-2026-007", title: "ตรวจสอบครุภัณฑ์ประจำปีและจัดทำทะเบียนคุมทรัพย์สิน", meta: "งานพัสดุ", from: "นางสุดา รองผอ.", to: "นายวีระ (หัวหน้างานพัสดุ)", status: "forced", priority: "normal", cross: false, due: "24 ก.ค. 2569 16:30", elapsed: "4 วัน 1 ชม." }
+];
+
+const PEOPLE = [
+  { id: "u1", name: "นายสมชาย ทองดี", roles: "ผู้อำนวยการ", icon: "award-fill", roleIds: ["director"] },
+  { id: "u2", name: "นางอรุณี ศรีสุข", roles: "รองผู้อำนวยการฝ่ายวิชาการ", icon: "person-vcard-fill", roleIds: ["deputy"] },
+  { id: "u3", name: "นายกิตติ วงศ์ไทย", roles: "หัวหน้างานทะเบียน · เจ้าหน้าที่งานอาคารสถานที่", icon: "person-gear", roleIds: ["supervisor", "staff"] },
+  { id: "u4", name: "นายประเสริฐ ใจกล้า", roles: "หัวหน้าแผนกช่างยนต์ · หัวหน้างานวิจัย", icon: "buildings-fill", roleIds: ["dept", "supervisor"] },
+  { id: "u5", name: "นางสาววิภา แก้วใส", roles: "เจ้าหน้าที่งานประกันคุณภาพ", icon: "person-workspace", roleIds: ["staff"] }
+];
+
+class Component extends DCLogic {
+  state = {
+    theme: "system", sysDark: false, activeRole: "director", userName: "นายสมชาย ทองดี",
+    myRoles: ["director", "admin"], impersonating: false, showImpersonate: false,
+    openId: null, filter: "all", query: "", composer: "", drafts: {}, answers: {},
+    menuIdx: 0, tickets: TICKETS
+  };
+
+  componentDidMount() {
+    this.mq = window.matchMedia("(prefers-color-scheme: dark)");
+    this.onMq = () => this.setState({ sysDark: this.mq.matches });
+    this.mq.addEventListener("change", this.onMq);
+    const saved = localStorage.getItem("edutask-theme");
+    this.setState({ sysDark: this.mq.matches, theme: saved || "system" });
+  }
+  componentWillUnmount() { if (this.mq) this.mq.removeEventListener("change", this.onMq); }
+
+  effectiveDark() { const t = this.state.theme; return t === "dark" || (t === "system" && this.state.sysDark); }
+
+  componentDidUpdate() { this.applyTheme(); }
+  applyTheme() { document.documentElement.setAttribute("data-bs-theme", this.effectiveDark() ? "dark" : "light"); }
+
+  setTheme(t) { localStorage.setItem("edutask-theme", t); this.setState({ theme: t }, () => this.applyTheme()); }
+
+  renderVals() {
+    this.applyTheme();
+    const s = this.state;
+    const role = ROLES[s.activeRole] || ROLES.staff;
+
+    const myRoles = s.myRoles.map(id => ({ id, ...ROLES[id] }));
+
+    const menu = (MENUS[s.activeRole] || []).map((m, i) => ({
+      icon: m[0], label: m[1], count: m[2],
+      cls: i === s.menuIdx ? "active" : "",
+      onClick: () => this.setState({ menuIdx: i })
+    }));
+
+    const themeOptions = [
+      { id: "light", icon: "sun-fill", label: "Light Mode" },
+      { id: "dark", icon: "moon-stars-fill", label: "Dark Mode" },
+      { id: "system", icon: "circle-half", label: "System Default" }
+    ].map(t => ({ ...t, cls: s.theme === t.id ? "btn-primary" : "btn-outline-secondary", onClick: () => this.setTheme(t.id) }));
+
+    const all = s.tickets;
+    const q = s.query.trim().toLowerCase();
+    const byFilter = {
+      all: () => true,
+      open: t => ["new", "ack", "doing", "review"].includes(t.status),
+      wait: t => ["submitted", "review"].includes(t.status),
+      done: t => ["done", "forced"].includes(t.status),
+      cross: t => t.cross
+    };
+    const rows = all.filter(byFilter[s.filter] || byFilter.all)
+      .filter(t => !q || (t.code + " " + t.title).toLowerCase().includes(q))
+      .map(t => this.decorate(t));
+
+    const filters = [
+      ["all", "ทั้งหมด"], ["open", "ยังไม่เสร็จ"], ["wait", "รอฉันดำเนินการ"], ["done", "ปิดงานแล้ว"], ["cross", "สั่งข้ามขั้น"]
+    ].map(([id, label]) => ({ label, cls: s.filter === id ? "btn-primary" : "btn-outline-secondary", onClick: () => this.setState({ filter: id }) }));
+
+    const cntDoing = all.filter(t => ["ack", "doing", "review"].includes(t.status)).length;
+    const cntDone = all.filter(t => ["done", "forced"].includes(t.status)).length;
+    const cntCross = all.filter(t => t.cross).length;
+    const stats = [
+      { label: "ตั๋วงานทั้งหมด", value: all.length + 405, hint: "ปีการศึกษา 2569", icon: "ticket-detailed-fill", bg: "rgba(30,58,138,.12)", fg: "#1e3a8a" },
+      { label: "กำลังดำเนินงาน", value: cntDoing + 41, hint: "เกินกำหนด 3 รายการ", icon: "hourglass-split", bg: "rgba(217,119,6,.14)", fg: "#b45309" },
+      { label: "เสร็จสิ้น / อนุมัติแล้ว", value: cntDone + 356, hint: "ตรงเวลา 92%", icon: "check2-circle", bg: "rgba(16,185,129,.14)", fg: "#047857" },
+      { label: "งานที่สั่งข้ามขั้น", value: cntCross + 33, hint: "เฉลี่ย 8.9% ของงานทั้งหมด", icon: "diagram-3-fill", bg: "rgba(14,165,233,.14)", fg: "#0369a1" }
+    ];
+
+    const openTicket = all.find(t => t.id === s.openId);
+    const detail = openTicket ? this.buildDetail(openTicket) : false;
+
+    const isAssigner = ["director", "deputy", "dept", "admin"].includes(s.activeRole);
+
+    return {
+      pageTitle: (menu[s.menuIdx] && menu[s.menuIdx].label) || "Dashboard ภาพรวม",
+      activeRole: s.activeRole, activeRoleLabel: role.label, activeRoleIcon: role.icon,
+      userName: s.userName, myRoles, menu, themeOptions, stats, filters, rows, detail,
+      crossCount: cntCross + 33, query: s.query, composer: s.composer,
+      impersonating: s.impersonating, showImpersonate: s.showImpersonate,
+      composerTitle: isAssigner ? "ตอบกลับ / ชี้แจงในฐานะผู้มอบหมาย" : "ขอทบทวนคำสั่ง — ส่งคำถามเป็นข้อๆ",
+      composerHint: isAssigner ? "พิมพ์คำชี้แจงเพิ่มเติม หรือคำตอบรวมทุกข้อ…" : "พิมพ์คำถาม 1 ข้อต่อการส่ง เช่น ขอทราบรูปแบบรายงานที่ต้องการ…",
+      onRoleChange: e => this.setState({ activeRole: e.target.value, menuIdx: 0 }),
+      onQuery: e => this.setState({ query: e.target.value }),
+      onComposer: e => this.setState({ composer: e.target.value }),
+      openNew: () => alert("เปิดฟอร์มสร้างตั๋วงานใหม่ (TK-2026-008)\nรหัสตั๋วถูกสร้างอัตโนมัติโดยระบบ"),
+      openImpersonate: () => this.setState({ showImpersonate: true }),
+      closeImpersonate: () => this.setState({ showImpersonate: false }),
+      exitImpersonation: () => this.setState({ impersonating: false, userName: "นายสมชาย ทองดี", myRoles: ["director", "admin"], activeRole: "admin", menuIdx: 0 }),
+      closeDetail: () => this.setState({ openId: null }),
+      stop: e => e.stopPropagation(),
+      people: PEOPLE.map(p => ({ ...p, onPick: () => this.setState({ impersonating: true, showImpersonate: false, userName: p.name, myRoles: p.roleIds, activeRole: p.roleIds[0], menuIdx: 0 }) })),
+      onAddQuestion: () => this.addQuestion(),
+      onExplainOnly: () => { if (!s.composer.trim()) return alert("กรุณาพิมพ์คำชี้แจงก่อน"); alert("บันทึกคำชี้แจงเพิ่มเติมแล้ว (ไม่ผูกกับคำถามข้อใด) — ระบบบันทึก Timestamp ในไทม์ไลน์"); this.setState({ composer: "" }); },
+      onForceClose: () => { if (window.confirm("ยืนยันสั่งปิดงานทันที (Force Close)? คำถามที่ยังไม่ได้ตอบจะถูกปิดพร้อมกัน")) this.setStatus("forced"); }
+    };
+  }
+
+  decorate(t) {
+    const st = ST[t.status], pri = PRI[t.priority];
+    return {
+      code: t.code, title: t.title, meta: t.meta || "", from: t.from, to: t.to, elapsed: t.elapsed, cross: !!t.cross,
+      status: st[0], stBg: st[1], stFg: st[2], priority: pri[0], priBg: pri[1], priFg: pri[2],
+      onOpen: () => this.setState({ openId: t.id })
+    };
+  }
+
+  setStatus(status) {
+    this.setState(s => ({ tickets: s.tickets.map(t => t.id === s.openId ? { ...t, status } : t), composer: "" }));
+  }
+
+  addQuestion() {
+    const text = this.state.composer.trim();
+    if (!text) return alert("กรุณาพิมพ์คำถามก่อนส่ง");
+    this.setState(s => ({
+      composer: "",
+      tickets: s.tickets.map(t => {
+        if (t.id !== s.openId) return t;
+        const qs = t.questions || [];
+        return { ...t, status: "review", questions: [...qs, { no: qs.length + 1, text, by: s.userName, at: "วันนี้ " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }), answer: "" }] };
+      })
+    }));
+  }
+
+  buildDetail(t) {
+    const s = this.state;
+    const base = this.decorate(t);
+    const isAssigner = ["director", "deputy", "dept", "admin"].includes(s.activeRole);
+    const qs = (t.questions || []).map(q => {
+      const key = t.id + "-" + q.no;
+      const ans = s.answers[key] || q.answer;
+      return {
+        no: q.no, text: q.text, by: q.by, at: q.at,
+        hasAnswer: !!ans, answer: ans, answerBy: q.answer && !s.answers[key] ? q.answerBy : s.userName, answerAt: q.answer && !s.answers[key] ? q.answerAt : "เมื่อสักครู่",
+        stLabel: ans ? "ตอบแล้ว" : "รอคำตอบ",
+        stBg: ans ? "rgba(16,185,129,.15)" : "rgba(217,119,6,.15)",
+        stFg: ans ? "#047857" : "#b45309",
+        canAnswer: isAssigner && !ans,
+        draft: s.drafts[key] || "",
+        onDraft: e => this.setState(st => ({ drafts: { ...st.drafts, [key]: e.target.value } })),
+        onAnswer: () => {
+          const v = (this.state.drafts[key] || "").trim();
+          if (!v) return alert("กรุณาพิมพ์คำตอบก่อน");
+          this.setState(st => ({ answers: { ...st.answers, [key]: v }, drafts: { ...st.drafts, [key]: "" } }));
+        }
+      };
+    });
+
+    const actions = isAssigner
+      ? [
+          { label: "อนุมัติผลงาน / ปิดตั๋ว", icon: "check2-circle", cls: "btn-primary", onClick: () => this.setStatus("done") },
+          { label: "ตอบคำถามทุกข้อพร้อมกัน", icon: "chat-square-dots", cls: "btn-outline-primary", onClick: () => alert("เปิดโหมดตอบทุกข้อ — พิมพ์คำตอบแยกในแต่ละข้อ แล้วกดยืนยัน") },
+          { label: "สั่งปิดงานทันที (Force Close)", icon: "lock", cls: "btn-outline-danger", onClick: () => this.setStatus("forced") },
+          { label: "มอบหมายต่อ / เปลี่ยนผู้รับผิดชอบ", icon: "person-plus", cls: "btn-outline-secondary", onClick: () => alert("เลือกผู้รับมอบหมายใหม่ — หากข้ามลำดับขั้น ระบบจะบันทึกเป็นสถิติสั่งงานข้ามขั้น") }
+        ]
+      : [
+          { label: "กดรับทราบ (Acknowledge)", icon: "hand-thumbs-up", cls: "btn-primary", onClick: () => this.setStatus("ack") },
+          { label: "เริ่มดำเนินการ", icon: "play-circle", cls: "btn-outline-primary", onClick: () => this.setStatus("doing") },
+          { label: "ขอทบทวนคำสั่ง (Request Review)", icon: "question-circle", cls: "btn-outline-secondary", onClick: () => this.setStatus("review") },
+          { label: "ส่งงาน / รายงานผลต่อผู้บริหาร", icon: "upload", cls: "btn-outline-success", onClick: () => this.setStatus("submitted") }
+        ];
+
+    return {
+      ...base,
+      due: t.due, description: t.description || "รายละเอียดงานตามหนังสือสั่งการ พร้อมเอกสารแนบประกอบการดำเนินงาน",
+      files: t.files || [{ icon: "file-earmark-word-fill", color: "#2563eb", name: "หนังสือสั่งการ.docx", meta: "Word · 320 KB" }],
+      questions: qs, questionCount: qs.length,
+      timeline: t.timeline || [
+        { label: "สร้างและมอบหมายตั๋วงาน", at: "24 ก.ค. 2569 09:00", by: t.from, gap: "" },
+        { label: "ผู้รับมอบหมายเปิดอ่าน", at: "24 ก.ค. 2569 10:05", by: t.to, gap: "+1 ชม. 5 นาที" },
+        { label: "กดรับทราบและเริ่มดำเนินงาน", at: "24 ก.ค. 2569 10:11", by: t.to, gap: "+6 นาที" }
+      ],
+      durations: t.durations || [
+        { label: "เวลาที่ใช้ในการตอบรับงาน", value: "1 ชม. 11 นาที" },
+        { label: "เวลารวมในการดำเนินการ", value: t.elapsed },
+        { label: "คงเหลือถึงกำหนดส่ง", value: "2 วัน 6 ชม." }
+      ],
+      actions
+    };
+  }
+}
+</script>
+</body>
+</html>
