@@ -108,6 +108,75 @@ final class Ticket
         return $st->fetchAll();
     }
 
+    /** Tickets with a due date in the given month that the user assigned or received. */
+    public static function forMonth(int $userId, int $year, int $month): array
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT t.*, uf.full_name AS from_name, ut.full_name AS to_name
+             FROM tickets t
+             JOIN users uf ON uf.id = t.from_user_id
+             JOIN users ut ON ut.id = t.to_user_id
+             WHERE t.due_at IS NOT NULL
+               AND YEAR(t.due_at) = ? AND MONTH(t.due_at) = ?
+               AND (t.from_user_id = ? OR t.to_user_id = ?)
+             ORDER BY t.due_at ASC'
+        );
+        $st->execute([$year, $month, $userId, $userId]);
+        return $st->fetchAll();
+    }
+
+    /**
+     * Due-date alerts for one user, in two escalating levels.
+     *
+     * A ticket only alerts if there was ever room to act on it: tickets whose
+     * whole lifetime (created_at → due_at) already fitted inside the alert
+     * window were short-notice by design, so warning about them is noise and
+     * they are excluded. That exclusion is applied per level, so a 2-day task
+     * is exempt from the 3-day warning but still raises the 24-hour alert.
+     *
+     * @return array{urgent:array<int,array>,warning:array<int,array>}
+     */
+    public static function alertsFor(int $userId, int $warnDays, int $urgentHours): array
+    {
+        $st = Database::pdo()->prepare(
+            "SELECT t.*, uf.full_name AS from_name, ut.full_name AS to_name
+             FROM tickets t
+             JOIN users uf ON uf.id = t.from_user_id
+             JOIN users ut ON ut.id = t.to_user_id
+             WHERE t.status NOT IN ('done','forced')
+               AND t.due_at IS NOT NULL
+               AND t.due_at <= DATE_ADD(NOW(), INTERVAL ? DAY)
+               AND (t.from_user_id = ? OR t.to_user_id = ?)
+             ORDER BY t.due_at ASC"
+        );
+        $st->execute([max(1, $warnDays), $userId, $userId]);
+
+        $warnHours = max(1, $warnDays) * 24;
+        $now = time();
+        $out = ['urgent' => [], 'warning' => []];
+
+        foreach ($st->fetchAll() as $t) {
+            $due = strtotime((string) $t['due_at']);
+            $created = strtotime((string) $t['created_at']);
+            $leadHours = ($due - $created) / 3600;
+            $hoursLeft = ($due - $now) / 3600;
+
+            $t['hoursLeft'] = $hoursLeft;
+            $t['isOverdue'] = $hoursLeft < 0;
+            $t['isMine'] = (int) $t['to_user_id'] === $userId;
+
+            if ($hoursLeft <= $urgentHours) {
+                if ($leadHours > $urgentHours) {
+                    $out['urgent'][] = $t;
+                }
+            } elseif ($leadHours > $warnHours) {
+                $out['warning'][] = $t;
+            }
+        }
+
+        return $out;
+    }
+
     public static function stats(): array
     {
         $pdo = Database::pdo();

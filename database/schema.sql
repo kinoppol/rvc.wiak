@@ -158,23 +158,113 @@ CREATE TABLE IF NOT EXISTS settings (
     PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ---------------------------------------------------------------------
+-- Organisational structure. A vocational college is organised as:
+--   ผู้อำนวยการ
+--     └── รองผู้อำนวยการ — one per ฝ่าย (divisions, 4 of them)
+--           └── หัวหน้างาน — one or more งาน (works)
+--                 └── เจ้าหน้าที่ — one or more งาน
+--     └── หัวหน้าแผนก — one or more แผนก (departments)
+--           └── ครู — the แผนก they belong to
+-- `works.division_id` is optional: an admin may add a งาน before deciding
+-- which ฝ่าย owns it.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS divisions (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(150) NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS works (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name        VARCHAR(150) NOT NULL UNIQUE,
+    division_id INT UNSIGNED NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_works_division (division_id),
+    CONSTRAINT fk_works_division FOREIGN KEY (division_id) REFERENCES divisions(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS departments (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name       VARCHAR(150) NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
+-- user_role_units: which org unit a user holds a given role *in*.
+-- Scoped per (user, role) because one person can legitimately be
+-- หัวหน้างาน of one งาน while also being เจ้าหน้าที่ of another.
+-- Exactly one of division_id/work_id/department_id is set per row —
+-- which one is determined by the role (see Role::ROLE_UNIT_TYPE).
+-- Roles outside the org chart (admin, director) have no rows here.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_role_units (
+    id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id       INT UNSIGNED NOT NULL,
+    role_id       TINYINT UNSIGNED NOT NULL,
+    division_id   INT UNSIGNED NULL,
+    work_id       INT UNSIGNED NULL,
+    department_id INT UNSIGNED NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_user_role_unit (user_id, role_id, division_id, work_id, department_id),
+    CONSTRAINT fk_uru_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uru_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uru_division FOREIGN KEY (division_id) REFERENCES divisions(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uru_work FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uru_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Per-user override of the due-date warning window; NULL = use the
+-- admin-configured default from `settings`.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_warn_days TINYINT UNSIGNED NULL AFTER department;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ---------------------------------------------------------------------
 -- Seed reference data: roles
+--
+-- hierarchy_level drives cross-level ("ข้ามขั้น") detection. The two
+-- branches of the org chart run in parallel, so หัวหน้างาน and
+-- หัวหน้าแผนก share a level, as do เจ้าหน้าที่ and ครู:
+--   1 ผอ. → 2 รองผอ. → 3 หัวหน้างาน  → 4 เจ้าหน้าที่
+--                    → 3 หัวหน้าแผนก → 4 ครู
+-- Re-running this file re-syncs every descriptive column, so role
+-- metadata is upgraded in place on reinstall.
 -- ---------------------------------------------------------------------
 INSERT INTO roles (code, label, short_label, icon, chip_bg, chip_fg, hierarchy_level, is_assigner) VALUES
 ('admin',      'ผู้ดูแลระบบ (Admin)',            'Admin',        'shield-lock-fill',  'rgba(220,38,38,.18)',  '#fca5a5', NULL, 1),
 ('director',   'ผู้อำนวยการ (Director)',         'ผอ.',          'award-fill',        'rgba(37,99,235,.22)',  '#93c5fd', 1,    1),
 ('deputy',     'รองผู้อำนวยการ (Deputy)',        'รองผอ.',       'person-vcard-fill', 'rgba(14,165,233,.2)',  '#7dd3fc', 2,    1),
 ('dept',       'หัวหน้าแผนก (Dept. Head)',       'หัวหน้าแผนก',  'buildings-fill',    'rgba(168,85,247,.2)',  '#d8b4fe', 3,    1),
-('supervisor', 'หัวหน้างาน (Supervisor)',        'หัวหน้างาน',   'person-gear',       'rgba(16,185,129,.2)',  '#6ee7b7', 4,    0),
-('staff',      'เจ้าหน้าที่ในงาน (Staff)',       'เจ้าหน้าที่',  'person-workspace',  'rgba(148,163,184,.22)','#cbd5e1', 5,    0)
-ON DUPLICATE KEY UPDATE label = VALUES(label);
+('supervisor', 'หัวหน้างาน (Supervisor)',        'หัวหน้างาน',   'person-gear',       'rgba(16,185,129,.2)',  '#6ee7b7', 3,    0),
+('staff',      'เจ้าหน้าที่ในงาน (Staff)',       'เจ้าหน้าที่',  'person-workspace',  'rgba(148,163,184,.22)','#cbd5e1', 4,    0),
+('teacher',    'ครู (Teacher)',                  'ครู',          'mortarboard-fill',  'rgba(234,179,8,.2)',   '#fde047', 4,    0)
+ON DUPLICATE KEY UPDATE
+    label = VALUES(label), short_label = VALUES(short_label), icon = VALUES(icon),
+    chip_bg = VALUES(chip_bg), chip_fg = VALUES(chip_fg),
+    hierarchy_level = VALUES(hierarchy_level), is_assigner = VALUES(is_assigner);
+
+-- ---------------------------------------------------------------------
+-- Seed reference data: the 4 ฝ่าย. งาน and แผนก are left for the admin
+-- to enter at /admin/org, since they vary between colleges.
+-- ---------------------------------------------------------------------
+INSERT INTO divisions (name) VALUES
+('ฝ่ายบริหารทรัพยากร'),
+('ฝ่ายแผนงานและความร่วมมือ'),
+('ฝ่ายพัฒนากิจการนักเรียนนักศึกษา'),
+('ฝ่ายวิชาการ')
+ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- ---------------------------------------------------------------------
 -- Seed reference data: settings
 -- ---------------------------------------------------------------------
+-- `key` = `key` is a deliberate no-op: these are defaults for a fresh
+-- install and must not clobber values an admin has since changed.
 INSERT INTO settings (`key`, value) VALUES
-('external_api_base_url', 'http://rms.rvc.ac.th')
+('external_api_base_url', 'http://rms.rvc.ac.th'),
+('notify_warn_days_default', '3'),
+('notify_urgent_hours', '24')
 ON DUPLICATE KEY UPDATE `key` = `key`;

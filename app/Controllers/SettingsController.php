@@ -40,7 +40,25 @@ final class SettingsController extends Controller
             'urlUpdated' => Request::str('urlUpdated') === '1',
             'synced' => Request::str('synced') === '1',
             'syncError' => Request::str('syncError'),
+            'warnDaysDefault' => max(1, (int) Setting::get('notify_warn_days_default', '3')),
+            'urgentHours' => max(1, (int) Setting::get('notify_urgent_hours', '24')),
+            'notifySaved' => Request::str('notifySaved') === '1',
         ]);
+    }
+
+    public function updateNotify(): void
+    {
+        $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+
+        $days = max(1, min(60, Request::int('warn_days_default', 3)));
+        $hours = max(1, min(720, Request::int('urgent_hours', 24)));
+
+        Setting::set('notify_warn_days_default', (string) $days);
+        Setting::set('notify_urgent_hours', (string) $hours);
+        AuditLog::record((int) Auth::realUser()['id'], null, 'settings.update_notify', 'setting', null, "warn_days={$days} urgent_hours={$hours}");
+
+        $this->redirect('/admin/settings?notifySaved=1');
     }
 
     public function updateUrl(): void

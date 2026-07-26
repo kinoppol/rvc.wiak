@@ -172,6 +172,16 @@
     }
   });
 
+  // Roles modal: show a role's org-unit picker only while that role is ticked.
+  // Delegated (not an inline script in the partial) because scripts injected
+  // via innerHTML never execute.
+  document.addEventListener("change", function (e) {
+    var toggle = e.target.closest("[data-role-toggle]");
+    if (!toggle) return;
+    var box = document.querySelector('[data-role-units="' + toggle.getAttribute("data-role-toggle") + '"]');
+    if (box) box.style.display = toggle.checked ? "" : "none";
+  });
+
   // Role switch.
   document.addEventListener("change", function (e) {
     if (e.target.id === "role-switcher") {

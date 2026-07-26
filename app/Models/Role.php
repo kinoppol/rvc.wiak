@@ -7,6 +7,31 @@ use App\Core\Database;
 
 final class Role
 {
+    /**
+     * Which kind of org unit a role must be scoped to. Roles absent from
+     * this map (admin, director) sit outside the org chart and take none.
+     */
+    public const ROLE_UNIT_TYPE = [
+        'deputy' => 'division',
+        'supervisor' => 'work',
+        'dept' => 'department',
+        'staff' => 'work',
+        'teacher' => 'department',
+    ];
+
+    /** Roles that take exactly one unit rather than one-or-more. */
+    public const SINGLE_UNIT_ROLES = ['deputy'];
+
+    public static function unitType(string $code): ?string
+    {
+        return self::ROLE_UNIT_TYPE[$code] ?? null;
+    }
+
+    public static function needsSingleUnit(string $code): bool
+    {
+        return in_array($code, self::SINGLE_UNIT_ROLES, true);
+    }
+
     /** @return array<int,array> keyed by code */
     public static function all(): array
     {

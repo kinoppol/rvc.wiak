@@ -9,6 +9,7 @@ use App\Core\Csrf;
 use App\Core\Request;
 use App\Core\View;
 use App\Models\AuditLog;
+use App\Models\OrgUnit;
 use App\Models\Role;
 use App\Models\User;
 
@@ -65,7 +66,13 @@ final class AdminController extends Controller
         $this->html(View::render('partials/user_roles_edit', [
             'target' => $target,
             'currentRoles' => User::rolesFor($targetId),
+            'currentUnits' => User::roleUnitsFor($targetId),
             'roles' => Role::all(),
+            'unitsByType' => [
+                'division' => OrgUnit::all('division'),
+                'work' => OrgUnit::all('work'),
+                'department' => OrgUnit::all('department'),
+            ],
         ]));
     }
 
@@ -81,7 +88,8 @@ final class AdminController extends Controller
         }
 
         $submitted = $_POST['roles'] ?? [];
-        $validCodes = array_keys(Role::all());
+        $allRoles = Role::all();
+        $validCodes = array_keys($allRoles);
         $roleCodes = array_values(array_intersect($validCodes, is_array($submitted) ? $submitted : []));
 
         if (!$roleCodes) {
@@ -93,8 +101,40 @@ final class AdminController extends Controller
             $this->json(['ok' => false, 'error' => 'ไม่สามารถถอดบทบาทผู้ดูแลระบบออกจากบัญชีของตนเองได้'], 422);
         }
 
-        User::setRoles($targetId, $roleCodes);
-        AuditLog::record($realId, null, 'user.update_roles', 'user', $targetId, implode(',', $roleCodes));
+        // Roles inside the org chart must name the unit(s) they apply to,
+        // and those ids have to be real ones of the right kind.
+        $submittedUnits = $_POST['units'] ?? [];
+        $unitsByRole = [];
+        foreach ($roleCodes as $code) {
+            $unitType = Role::unitType($code);
+            if ($unitType === null) {
+                continue;
+            }
+            $label = $allRoles[$code]['label'];
+            $unitLabel = OrgUnit::label($unitType);
+
+            $ids = $submittedUnits[$code] ?? [];
+            $ids = is_array($ids) ? array_values(array_unique(array_filter(array_map('intval', $ids)))) : [];
+
+            $validIds = array_map('intval', array_column(OrgUnit::all($unitType), 'id'));
+            $ids = array_values(array_intersect($ids, $validIds));
+
+            if (!$ids) {
+                $this->json(['ok' => false, 'error' => "บทบาท \"{$label}\" ต้องระบุ{$unitLabel}อย่างน้อย 1 รายการ"], 422);
+            }
+            if (Role::needsSingleUnit($code) && count($ids) > 1) {
+                $this->json(['ok' => false, 'error' => "บทบาท \"{$label}\" ระบุ{$unitLabel}ได้เพียง 1 รายการ"], 422);
+            }
+            $unitsByRole[$code] = $ids;
+        }
+
+        User::setRoles($targetId, $roleCodes, $unitsByRole);
+
+        $detail = [];
+        foreach ($roleCodes as $code) {
+            $detail[] = $code . (isset($unitsByRole[$code]) ? '(' . implode('/', $unitsByRole[$code]) . ')' : '');
+        }
+        AuditLog::record($realId, null, 'user.update_roles', 'user', $targetId, implode(',', $detail));
 
         $this->json(['ok' => true]);
     }

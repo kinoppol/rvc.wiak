@@ -42,6 +42,34 @@ use App\Core\View;
     </div>
   </div>
 
+  <?php if ($notifySaved): ?>
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> บันทึกค่าเริ่มต้นการแจ้งเตือนแล้ว</div>
+  <?php endif; ?>
+
+  <div class="card border-0 shadow-sm" style="border-radius:14px">
+    <div class="card-body">
+      <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-bell"></i> ค่าเริ่มต้นการแจ้งเตือนงานใกล้ถึงกำหนด</div>
+      <div class="text-body-secondary mb-3" style="font-size:.78rem">
+        ค่าเริ่มต้นสำหรับผู้ใช้ทุกคน — ผู้ใช้แต่ละคนสามารถกำหนดจำนวนวันแจ้งเตือนล่วงหน้าของตนเองทับค่านี้ได้ที่เมนู "การแจ้งเตือนของฉัน"
+      </div>
+      <form method="post" action="<?= Url::to('/admin/settings/notify') ?>" class="d-flex gap-3 flex-wrap align-items-end">
+        <?= Csrf::field() ?>
+        <div>
+          <label class="form-label" style="font-size:.82rem">เตือนล่วงหน้า (วัน)</label>
+          <input type="number" name="warn_days_default" min="1" max="60" class="form-control form-control-sm" style="max-width:120px" value="<?= (int) $warnDaysDefault ?>" required>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:.82rem">แจ้งเตือนระดับด่วนที่สุด (ชั่วโมง)</label>
+          <input type="number" name="urgent_hours" min="1" max="720" class="form-control form-control-sm" style="max-width:140px" value="<?= (int) $urgentHours ?>" required>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">บันทึก</button>
+      </form>
+      <div class="form-text mt-2">
+        งานที่ถูกมอบหมายมาแบบกระชั้นชิดตั้งแต่ต้น (ระยะเวลาจากวันที่มอบหมายถึงกำหนดส่งสั้นกว่าเกณฑ์) จะไม่ถูกแจ้งเตือนในระดับนั้น
+      </div>
+    </div>
+  </div>
+
   <div class="card border-0 shadow-sm" style="border-radius:14px">
     <div class="card-body">
       <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-arrow-repeat"></i> โอนข้อมูลผู้ใช้จากระบบภายนอก</div>

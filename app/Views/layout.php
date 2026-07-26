@@ -5,6 +5,7 @@ use App\Core\Csrf;
 use App\Core\Url;
 use App\Core\View;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\User;
 
@@ -15,6 +16,17 @@ $roleInfo = $activeRole ? Role::find($activeRole) : null;
 $allRoles = Role::all();
 $crossCount = $user ? Ticket::stats()['cross'] : 0;
 $isAdmin = in_array('admin', $roles, true);
+
+$alerts = ['urgent' => [], 'warning' => []];
+if ($user) {
+    $alerts = Ticket::alertsFor(
+        (int) $user['id'],
+        User::warnDaysFor($user),
+        max(1, (int) Setting::get('notify_urgent_hours', '24'))
+    );
+}
+$alertCount = count($alerts['urgent']) + count($alerts['warning']);
+$currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 ?><!doctype html>
 <html lang="th">
 <head>
@@ -59,17 +71,28 @@ $isAdmin = in_array('admin', $roles, true);
 
       <nav class="d-flex flex-column gap-1 mt-3">
         <div style="color:#64748b;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;padding:0 4px 8px">เมนู</div>
-        <a class="side-link <?= ($_SERVER['REQUEST_URI'] ?? '') === Url::to('/') || rtrim($_SERVER['REQUEST_URI'] ?? '', '/') === rtrim(Url::to(''), '/') ? 'active' : '' ?>" href="<?= Url::to('/') ?>">
+        <a class="side-link <?= $currentPath === Url::to('/') || rtrim($currentPath, '/') === rtrim(Url::to(''), '/') ? 'active' : '' ?>" href="<?= Url::to('/') ?>">
           <i class="bi bi-speedometer2"></i><span class="flex-fill">แดชบอร์ด / ตั๋วงาน</span>
         </a>
+        <a class="side-link <?= $currentPath === Url::to('/calendar') ? 'active' : '' ?>" href="<?= Url::to('/calendar') ?>">
+          <i class="bi bi-calendar3"></i><span class="flex-fill">ปฏิทินกำหนดส่งงาน</span>
+        </a>
+        <a class="side-link <?= $currentPath === Url::to('/preferences') ? 'active' : '' ?>" href="<?= Url::to('/preferences') ?>">
+          <i class="bi bi-bell"></i><span class="flex-fill">การแจ้งเตือนของฉัน</span>
+          <?php if ($alertCount > 0): ?><span class="badge rounded-pill text-bg-danger" style="font-size:.64rem"><?= $alertCount ?></span><?php endif; ?>
+        </a>
         <?php if ($isAdmin): ?>
-        <a class="side-link" href="<?= Url::to('/admin/users') ?>">
+        <div style="color:#64748b;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;padding:10px 4px 6px">ผู้ดูแลระบบ</div>
+        <a class="side-link <?= $currentPath === Url::to('/admin/users') ? 'active' : '' ?>" href="<?= Url::to('/admin/users') ?>">
           <i class="bi bi-people-fill"></i><span class="flex-fill">จัดการผู้ใช้และบทบาท</span>
         </a>
-        <a class="side-link" href="<?= Url::to('/admin/audit') ?>">
+        <a class="side-link <?= $currentPath === Url::to('/admin/org') ? 'active' : '' ?>" href="<?= Url::to('/admin/org') ?>">
+          <i class="bi bi-diagram-3-fill"></i><span class="flex-fill">จัดการฝ่าย งาน แผนก</span>
+        </a>
+        <a class="side-link <?= $currentPath === Url::to('/admin/audit') ? 'active' : '' ?>" href="<?= Url::to('/admin/audit') ?>">
           <i class="bi bi-clock-history"></i><span class="flex-fill">Audit Log</span>
         </a>
-        <a class="side-link" href="<?= Url::to('/admin/settings') ?>">
+        <a class="side-link <?= $currentPath === Url::to('/admin/settings') ? 'active' : '' ?>" href="<?= Url::to('/admin/settings') ?>">
           <i class="bi bi-gear"></i><span class="flex-fill">ตั้งค่าระบบ</span>
         </a>
         <?php endif; ?>
@@ -89,6 +112,47 @@ $isAdmin = in_array('admin', $roles, true);
           <div class="text-body-secondary" style="font-size:.76rem">วิทยาลัยเทคนิค · ปีการศึกษา <?= (int) date('Y') + 543 ?> · ภาคเรียนที่ 1</div>
         </div>
         <div class="flex-fill"></div>
+        <div class="dropdown">
+          <button type="button" class="btn btn-sm <?= $alerts['urgent'] ? 'btn-danger' : ($alerts['warning'] ? 'btn-warning' : 'btn-outline-secondary') ?> position-relative"
+                  data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="การแจ้งเตือนงานใกล้ถึงกำหนด">
+            <i class="bi bi-bell<?= $alertCount > 0 ? '-fill' : '' ?>"></i>
+            <?php if ($alertCount > 0): ?><span class="badge rounded-pill text-bg-dark" style="font-size:.62rem"><?= $alertCount ?></span><?php endif; ?>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end shadow" style="width:min(380px,92vw);max-height:70vh;overflow-y:auto">
+            <div class="px-3 py-2" style="font-weight:600;font-size:.85rem">งานใกล้ถึงกำหนดส่ง</div>
+            <?php if ($alertCount === 0): ?>
+              <div class="px-3 pb-2 text-body-secondary" style="font-size:.8rem">ไม่มีงานที่ต้องแจ้งเตือน</div>
+            <?php endif; ?>
+
+            <?php foreach (['urgent' => ['ด่วนที่สุด', '#b91c1c', 'rgba(220,38,38,.12)'], 'warning' => ['เตือนล่วงหน้า', '#b45309', 'rgba(217,119,6,.12)']] as $level => [$levelLabel, $fg, $bg]): ?>
+              <?php if (!$alerts[$level]) { continue; } ?>
+              <div class="px-3 pt-1 pb-1" style="font-size:.72rem;font-weight:600;color:<?= $fg ?>">
+                <?= $levelLabel ?> (<?= count($alerts[$level]) ?>)
+              </div>
+              <?php foreach ($alerts[$level] as $a): ?>
+                <button type="button" class="dropdown-item d-flex flex-column gap-1" data-open-ticket="<?= (int) $a['id'] ?>" style="white-space:normal;background:<?= $bg ?>;border-bottom:1px solid var(--bs-border-color)">
+                  <div style="font-size:.8rem;font-weight:500"><?= View::e($a['title']) ?></div>
+                  <div class="d-flex gap-2 flex-wrap" style="font-size:.72rem">
+                    <span style="font-family:ui-monospace,monospace"><?= View::e($a['code']) ?></span>
+                    <span style="color:<?= $fg ?>;font-weight:600">
+                      <?php if ($a['isOverdue']): ?>
+                        เกินกำหนดแล้ว <?= Ticket::diffLabel(new DateTimeImmutable($a['due_at']), new DateTimeImmutable()) ?>
+                      <?php else: ?>
+                        เหลืออีก <?= Ticket::diffLabel(new DateTimeImmutable(), new DateTimeImmutable($a['due_at'])) ?>
+                      <?php endif; ?>
+                    </span>
+                  </div>
+                  <div class="text-body-secondary" style="font-size:.7rem">
+                    <?= $a['isMine'] ? 'คุณเป็นผู้รับผิดชอบ' : 'มอบหมายให้ ' . View::e($a['to_name']) ?>
+                    · กำหนดส่ง <?= date('d/m/Y H:i', strtotime($a['due_at'])) ?>
+                  </div>
+                </button>
+              <?php endforeach; ?>
+            <?php endforeach; ?>
+
+            <a class="dropdown-item text-center" href="<?= Url::to('/preferences') ?>" style="font-size:.76rem"><i class="bi bi-gear"></i> ตั้งค่าการแจ้งเตือน</a>
+          </div>
+        </div>
         <div class="btn-group btn-group-sm">
           <button type="button" class="btn btn-outline-secondary" data-theme-btn="light" title="Light Mode"><i class="bi bi-sun-fill"></i></button>
           <button type="button" class="btn btn-outline-secondary" data-theme-btn="dark" title="Dark Mode"><i class="bi bi-moon-stars-fill"></i></button>

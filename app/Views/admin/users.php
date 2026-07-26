@@ -1,6 +1,7 @@
 <?php
 use App\Core\Url;
 use App\Core\View;
+use App\Models\Role;
 /** @var array $people */
 /** @var int $total */
 /** @var int $page */
@@ -69,7 +70,15 @@ use App\Core\View;
             <td style="font-size:.8rem"><?= View::e($p['email'] ?? '—') ?></td>
             <td>
               <?php foreach ($p['roles'] as $rc): $r = $roles[$rc] ?? null; if (!$r) { continue; } ?>
-                <span class="badge rounded-pill" style="background:<?= View::e($r['chip_bg']) ?>;color:<?= View::e($r['chip_fg']) ?>;font-weight:500;font-size:.66rem;margin-right:2px"><i class="bi bi-<?= View::e($r['icon']) ?>"></i> <?= View::e($r['short_label']) ?></span>
+                <?php $units = $p['roleUnitNames'][$rc] ?? []; ?>
+                <div style="margin-bottom:2px">
+                  <span class="badge rounded-pill" style="background:<?= View::e($r['chip_bg']) ?>;color:<?= View::e($r['chip_fg']) ?>;font-weight:500;font-size:.66rem"><i class="bi bi-<?= View::e($r['icon']) ?>"></i> <?= View::e($r['short_label']) ?></span>
+                  <?php if ($units): ?>
+                    <span class="text-body-secondary" style="font-size:.72rem"><?= View::e(implode(', ', $units)) ?></span>
+                  <?php elseif (Role::unitType($rc) !== null): ?>
+                    <span class="text-warning-emphasis" style="font-size:.72rem" title="บทบาทนี้ต้องระบุสังกัด"><i class="bi bi-exclamation-triangle"></i> ยังไม่ระบุสังกัด</span>
+                  <?php endif; ?>
+                </div>
               <?php endforeach; ?>
             </td>
             <td>
