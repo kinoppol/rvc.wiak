@@ -53,7 +53,7 @@ final class TodoController extends Controller
     public function newForm(): void
     {
         $this->requireLogin();
-        $this->html(View::partial('todo_form', ['todo' => null]));
+        $this->html(View::render('partials/todo_form', ['todo' => null]));
     }
 
     public function editForm(int $id): void
@@ -64,7 +64,7 @@ final class TodoController extends Controller
             $this->json(['ok' => false, 'error' => 'ไม่พบรายการ'], 404);
         }
         $logs = Todo::recentLogs($id);
-        $this->html(View::partial('todo_form', ['todo' => $todo, 'logs' => $logs]));
+        $this->html(View::render('partials/todo_form', ['todo' => $todo, 'logs' => $logs]));
     }
 
     public function store(): void
