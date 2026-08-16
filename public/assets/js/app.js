@@ -80,6 +80,11 @@
   var boardTimer = null;
   function refreshBoard() {
     var form = document.getElementById("board-filters");
+    // The board only exists on the dashboard. Every generic data-post /
+    // data-ajax-form handler calls this unconditionally, so bail out quietly
+    // elsewhere — throwing here would abort the rest of the success handler
+    // (including the data-reload-on-success reload).
+    if (!form || !document.getElementById("board-root")) return;
     var params = new URLSearchParams(new FormData(form)).toString();
     fetchHtml("/board?" + params).then(function (res) {
       document.getElementById("board-root").innerHTML = res.text;
