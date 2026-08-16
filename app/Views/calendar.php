@@ -11,26 +11,55 @@ use App\Models\Ticket;
 /** @var string $prevMonth */
 /** @var string $nextMonth */
 /** @var int|null $todayDay */
+/** @var array<int,array{type:string,id:int,name:string}> $userUnits */
+/** @var array{type:string,id:int}|null $activeUnit */
+/** @var string $unitParam */
 
 $dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 $totalCells = (int) (ceil(($leadingBlanks + $daysInMonth) / 7) * 7);
 $monthTotal = array_sum(array_map('count', $byDay));
+
+$activeUnitName = '';
+if ($activeUnit) {
+    foreach ($userUnits as $u) {
+        if ($u['type'] === $activeUnit['type'] && $u['id'] === $activeUnit['id']) {
+            $activeUnitName = $u['name'];
+            break;
+        }
+    }
+}
 ?>
 <div class="card border-0 shadow-sm" style="border-radius:14px">
   <div class="card-header bg-transparent d-flex align-items-center gap-2 flex-wrap" style="padding:14px 18px">
     <div>
       <div style="font-weight:600;font-size:.95rem"><?= View::e($monthLabel) ?></div>
-      <div class="text-body-secondary" style="font-size:.76rem">กำหนดส่งงาน <?= $monthTotal ?> รายการในเดือนนี้</div>
+      <div class="text-body-secondary" style="font-size:.76rem">กำหนดส่งงาน <?= $monthTotal ?> รายการในเดือนนี้<?php if ($activeUnitName): ?> · <span style="font-weight:500"><?= View::e($activeUnitName) ?></span><?php endif; ?></div>
     </div>
     <div class="flex-fill"></div>
+
+    <?php if (count($userUnits) > 1): ?>
+    <div class="d-flex align-items-center gap-1 flex-wrap" style="font-size:.73rem">
+      <span class="text-body-secondary me-1" style="white-space:nowrap">สายงาน:</span>
+      <a href="<?= Url::to('/calendar?month=' . $year . '-' . $month) ?>"
+         class="badge rounded-pill text-decoration-none <?= $activeUnit === null ? 'text-bg-primary' : 'text-bg-light border' ?>"
+         style="font-size:.7rem;font-weight:500;padding:4px 10px">ทั้งหมด</a>
+      <?php foreach ($userUnits as $u): ?>
+        <?php $isActive = $activeUnit && $activeUnit['type'] === $u['type'] && $activeUnit['id'] === $u['id']; ?>
+        <a href="<?= Url::to('/calendar?month=' . $year . '-' . $month . '&unit=' . $u['type'] . ':' . $u['id']) ?>"
+           class="badge rounded-pill text-decoration-none <?= $isActive ? 'text-bg-primary' : 'text-bg-light border' ?>"
+           style="font-size:.7rem;font-weight:500;padding:4px 10px"><?= View::e($u['name']) ?></a>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
     <div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:.74rem">
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#1d4ed8;vertical-align:middle"></span> งานที่ได้รับมอบหมาย</span>
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;vertical-align:middle"></span> งานที่ฉันมอบหมาย</span>
     </div>
     <div class="btn-group btn-group-sm">
-      <a class="btn btn-outline-secondary" href="<?= Url::to('/calendar?month=' . $prevMonth) ?>"><i class="bi bi-chevron-left"></i></a>
-      <a class="btn btn-outline-secondary" href="<?= Url::to('/calendar') ?>">เดือนนี้</a>
-      <a class="btn btn-outline-secondary" href="<?= Url::to('/calendar?month=' . $nextMonth) ?>"><i class="bi bi-chevron-right"></i></a>
+      <a class="btn btn-outline-secondary" href="<?= Url::to('/calendar?month=' . $prevMonth . $unitParam) ?>"><i class="bi bi-chevron-left"></i></a>
+      <a class="btn btn-outline-secondary" href="<?= Url::to('/calendar' . ($unitParam ? '?' . ltrim($unitParam, '&') : '')) ?>">เดือนนี้</a>
+      <a class="btn btn-outline-secondary" href="<?= Url::to('/calendar?month=' . $nextMonth . $unitParam) ?>"><i class="bi bi-chevron-right"></i></a>
     </div>
   </div>
 

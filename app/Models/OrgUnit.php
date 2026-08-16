@@ -104,6 +104,47 @@ final class OrgUnit
     }
 
     /**
+     * All org units the given user holds any role in, deduplicated by type+id.
+     * Director/admin have no unit rows and will get an empty array.
+     *
+     * @return array<int,array{type:string,id:int,name:string}>
+     */
+    public static function unitsForUser(int $userId): array
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT u.division_id, u.work_id, u.department_id,
+                    d.name AS division_name, w.name AS work_name, dep.name AS department_name
+             FROM user_role_units u
+             LEFT JOIN divisions d   ON d.id   = u.division_id
+             LEFT JOIN works w       ON w.id   = u.work_id
+             LEFT JOIN departments dep ON dep.id = u.department_id
+             WHERE u.user_id = ?'
+        );
+        $st->execute([$userId]);
+
+        $seen = [];
+        $units = [];
+        foreach ($st->fetchAll() as $row) {
+            foreach (['work' => 'work_id', 'department' => 'department_id', 'division' => 'division_id'] as $type => $col) {
+                if (!$row[$col]) {
+                    continue;
+                }
+                $key = $type . ':' . $row[$col];
+                if (!isset($seen[$key])) {
+                    $nameCol = match($type) {
+                        'work'       => 'work_name',
+                        'department' => 'department_name',
+                        'division'   => 'division_name',
+                    };
+                    $units[] = ['type' => $type, 'id' => (int) $row[$col], 'name' => $row[$nameCol]];
+                    $seen[$key] = true;
+                }
+            }
+        }
+        return $units;
+    }
+
+    /**
      * Deleting a unit that people are still assigned to would silently strip
      * those role assignments (the FK cascades), so refuse instead and let the
      * admin reassign first.

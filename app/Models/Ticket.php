@@ -108,20 +108,37 @@ final class Ticket
         return $st->fetchAll();
     }
 
-    /** Tickets with a due date in the given month that the user assigned or received. */
-    public static function forMonth(int $userId, int $year, int $month): array
+    /**
+     * Tickets with a due date in the given month that the user assigned or received.
+     * When $unitType/$unitId are given, only include tickets where the *other* party
+     * (the counterparty) is a member of that org unit in user_role_units.
+     */
+    public static function forMonth(int $userId, int $year, int $month, ?string $unitType = null, ?int $unitId = null): array
     {
+        $unitWhere = '';
+        $params = [$year, $month, $userId, $userId];
+
+        if ($unitType !== null && $unitId !== null && isset(OrgUnit::TYPES[$unitType])) {
+            $col = OrgUnit::TYPES[$unitType]['column']; // safe: from hardcoded map
+            $unitWhere = " AND (
+                (t.from_user_id = ? AND EXISTS (SELECT 1 FROM user_role_units WHERE user_id = t.to_user_id   AND {$col} = ?))
+             OR (t.to_user_id   = ? AND EXISTS (SELECT 1 FROM user_role_units WHERE user_id = t.from_user_id AND {$col} = ?))
+            )";
+            array_push($params, $userId, $unitId, $userId, $unitId);
+        }
+
         $st = Database::pdo()->prepare(
-            'SELECT t.*, uf.full_name AS from_name, ut.full_name AS to_name
+            "SELECT t.*, uf.full_name AS from_name, ut.full_name AS to_name
              FROM tickets t
              JOIN users uf ON uf.id = t.from_user_id
              JOIN users ut ON ut.id = t.to_user_id
              WHERE t.due_at IS NOT NULL
                AND YEAR(t.due_at) = ? AND MONTH(t.due_at) = ?
                AND (t.from_user_id = ? OR t.to_user_id = ?)
-             ORDER BY t.due_at ASC'
+               {$unitWhere}
+             ORDER BY t.due_at ASC"
         );
-        $st->execute([$year, $month, $userId, $userId]);
+        $st->execute($params);
         return $st->fetchAll();
     }
 
