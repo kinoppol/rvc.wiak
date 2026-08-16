@@ -37,17 +37,32 @@ final class CalendarController extends Controller
         }
         $unitParam = $activeUnit ? ('&unit=' . $activeUnit['type'] . ':' . $activeUnit['id']) : '';
 
+        // Parse optional direction filter: ?show=mine|by_me
+        $show = null;
+        $rawShow = Request::str('show');
+        if (in_array($rawShow, ['mine', 'by_me'], true)) {
+            $show = $rawShow;
+        }
+        $showParam = $show ? ('&show=' . $show) : '';
+
+        // Parse date mode: ?date=due (default) | created
+        $dateMode = Request::str('date') === 'created' ? 'created' : 'due';
+        $dateParam = $dateMode === 'created' ? '&date=created' : '';
+
         // Units this user belongs to — used to render the filter pills.
         $userUnits = OrgUnit::unitsForUser((int) $user['id']);
 
         $first = new \DateTimeImmutable(sprintf('%04d-%02d-01 00:00:00', $year, $month));
         $daysInMonth = (int) $first->format('t');
 
+        $dateField = $dateMode === 'created' ? 'created_at' : 'due_at';
+
         // Group this month's tickets by day-of-month so the grid can index by day.
         $byDay = [];
-        foreach (Ticket::forMonth((int) $user['id'], $year, $month, $activeUnit['type'] ?? null, $activeUnit['id'] ?? null) as $t) {
-            $day = (int) (new \DateTimeImmutable($t['due_at']))->format('j');
+        foreach (Ticket::forMonth((int) $user['id'], $year, $month, $activeUnit['type'] ?? null, $activeUnit['id'] ?? null, $show, $dateMode) as $t) {
+            $day = (int) (new \DateTimeImmutable($t[$dateField]))->format('j');
             $t['isMine'] = (int) $t['to_user_id'] === (int) $user['id'];
+            $t['_displayDate'] = $t[$dateField]; // which date to show on the chip
             $byDay[$day][] = $t;
         }
 
@@ -65,6 +80,10 @@ final class CalendarController extends Controller
             'userUnits' => $userUnits,
             'activeUnit' => $activeUnit,
             'unitParam' => $unitParam,
+            'show' => $show,
+            'showParam' => $showParam,
+            'dateMode' => $dateMode,
+            'dateParam' => $dateParam,
         ]);
     }
 }

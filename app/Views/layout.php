@@ -77,6 +77,9 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         <a class="side-link <?= $currentPath === Url::to('/calendar') ? 'active' : '' ?>" href="<?= Url::to('/calendar') ?>">
           <i class="bi bi-calendar3"></i><span class="flex-fill">ปฏิทินกำหนดส่งงาน</span>
         </a>
+        <a class="side-link <?= $currentPath === Url::to('/todos') ? 'active' : '' ?>" href="<?= Url::to('/todos') ?>">
+          <i class="bi bi-list-check"></i><span class="flex-fill">งานส่วนตัว (To-Do)</span>
+        </a>
         <a class="side-link <?= $currentPath === Url::to('/preferences') ? 'active' : '' ?>" href="<?= Url::to('/preferences') ?>">
           <i class="bi bi-bell"></i><span class="flex-fill">การแจ้งเตือนของฉัน</span>
           <?php if ($alertCount > 0): ?><span class="badge rounded-pill text-bg-danger" style="font-size:.64rem"><?= $alertCount ?></span><?php endif; ?>

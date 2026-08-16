@@ -109,15 +109,36 @@ final class Ticket
     }
 
     /**
-     * Tickets with a due date in the given month that the user assigned or received.
-     * When $unitType/$unitId are given, only include tickets where the *other* party
-     * (the counterparty) is a member of that org unit in user_role_units.
+     * Tickets in the given month that the user assigned or received.
+     *
+     * $dateMode: 'due' = filter/sort by due_at (only tickets with a deadline),
+     *            'created' = filter/sort by created_at (all tickets, no due_at constraint).
+     * $show: null = both directions, 'mine' = only assigned to me, 'by_me' = only assigned by me.
+     * $unitType/$unitId: when given, only include tickets where the counterparty is a member
+     *   of that org unit in user_role_units.
      */
-    public static function forMonth(int $userId, int $year, int $month, ?string $unitType = null, ?int $unitId = null): array
+    public static function forMonth(int $userId, int $year, int $month, ?string $unitType = null, ?int $unitId = null, ?string $show = null, string $dateMode = 'due'): array
     {
-        $unitWhere = '';
-        $params = [$year, $month, $userId, $userId];
+        $dateField = $dateMode === 'created' ? 'created_at' : 'due_at';
+        $dateWhere = $dateMode === 'created'
+            ? "YEAR(t.created_at) = ? AND MONTH(t.created_at) = ?"
+            : "t.due_at IS NOT NULL AND YEAR(t.due_at) = ? AND MONTH(t.due_at) = ?";
 
+        $params = [$year, $month];
+
+        if ($show === 'mine') {
+            $dirWhere = 't.to_user_id = ?';
+            $params[] = $userId;
+        } elseif ($show === 'by_me') {
+            $dirWhere = 't.from_user_id = ?';
+            $params[] = $userId;
+        } else {
+            $dirWhere = '(t.from_user_id = ? OR t.to_user_id = ?)';
+            $params[] = $userId;
+            $params[] = $userId;
+        }
+
+        $unitWhere = '';
         if ($unitType !== null && $unitId !== null && isset(OrgUnit::TYPES[$unitType])) {
             $col = OrgUnit::TYPES[$unitType]['column']; // safe: from hardcoded map
             $unitWhere = " AND (
@@ -132,11 +153,10 @@ final class Ticket
              FROM tickets t
              JOIN users uf ON uf.id = t.from_user_id
              JOIN users ut ON ut.id = t.to_user_id
-             WHERE t.due_at IS NOT NULL
-               AND YEAR(t.due_at) = ? AND MONTH(t.due_at) = ?
-               AND (t.from_user_id = ? OR t.to_user_id = ?)
+             WHERE {$dateWhere}
+               AND {$dirWhere}
                {$unitWhere}
-             ORDER BY t.due_at ASC"
+             ORDER BY t.{$dateField} ASC"
         );
         $st->execute($params);
         return $st->fetchAll();

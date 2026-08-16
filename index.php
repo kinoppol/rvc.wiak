@@ -12,6 +12,7 @@ use App\Controllers\OrgController;
 use App\Controllers\ProfileController;
 use App\Controllers\SettingsController;
 use App\Controllers\TicketController;
+use App\Controllers\TodoController;
 use App\Core\Request;
 use App\Core\Router;
 
@@ -25,6 +26,15 @@ $router->get('/', [DashboardController::class, 'index']);
 $router->get('/board', [DashboardController::class, 'board']);
 
 $router->get('/calendar', [CalendarController::class, 'index']);
+
+$router->get('/todos', [TodoController::class, 'index']);
+$router->get('/todos/new', [TodoController::class, 'newForm']);
+$router->post('/todos', [TodoController::class, 'store']);
+$router->get('/todos/{id}/edit', [TodoController::class, 'editForm']);
+$router->post('/todos/{id}', [TodoController::class, 'update']);
+$router->post('/todos/{id}/done', [TodoController::class, 'markDone']);
+$router->post('/todos/{id}/miss', [TodoController::class, 'markMiss']);
+$router->post('/todos/{id}/delete', [TodoController::class, 'delete']);
 
 $router->post('/role-switch', [ProfileController::class, 'switchRole']);
 $router->get('/preferences', [ProfileController::class, 'preferences']);

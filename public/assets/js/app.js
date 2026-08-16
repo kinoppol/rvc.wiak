@@ -162,6 +162,33 @@
     });
   });
 
+  // ---------- todo overlay ----------
+  document.addEventListener("click", function (e) {
+    var newBtn = e.target.closest("[data-open-new-todo]");
+    if (newBtn) {
+      fetchHtml("/todos/new").then(function (res) { openOverlay(res.text); });
+    }
+    var editBtn = e.target.closest("[data-open-todo]");
+    if (editBtn) {
+      fetchHtml("/todos/" + editBtn.getAttribute("data-open-todo") + "/edit").then(function (res) { openOverlay(res.text); });
+    }
+  });
+
+  // Show/hide conditional recurrence fields in the todo form.
+  // Initial visibility is set by PHP; this handles user changes.
+  function applyRecurVisibility(type) {
+    ["weekly", "monthly_date", "yearly", "interval"].forEach(function (t) {
+      var el = document.getElementById("todo-recur-" + t);
+      if (el) el.style.display = t === type ? "" : "none";
+    });
+    var endEl = document.getElementById("todo-recur-end");
+    if (endEl) endEl.style.display = type !== "none" ? "" : "none";
+  }
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest("#todo-recur-type");
+    if (sel) applyRecurVisibility(sel.value);
+  });
+
   // Impersonate pick.
   document.addEventListener("click", function (e) {
     var pick = e.target.closest("[data-impersonate-user]");
