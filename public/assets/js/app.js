@@ -189,6 +189,44 @@
     if (sel) applyRecurVisibility(sel.value);
   });
 
+  // ---------- clipboard paste into the attachment file input ----------
+  // Clipboard images arrive with no useful filename (browsers report
+  // "image.png" or an empty name for every screenshot), so synthesise a
+  // timestamped one — Upload::store() keeps the original name in the DB and
+  // it is what the recipient sees in the attachment list.
+  function clipboardFileName(file) {
+    if (file.name && file.name !== "image.png" && file.name !== "blob") return file.name;
+    var ext = ((file.type || "").split("/")[1] || "png").replace(/[^a-z0-9]/gi, "");
+    var d = new Date();
+    function pad(n) { return String(n).padStart(2, "0"); }
+    return "clipboard-" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate())
+         + "-" + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + "." + ext;
+  }
+
+  function showPasteHint(input) {
+    var hint = document.querySelector("[data-paste-hint]");
+    if (!hint) return;
+    var f = input.files && input.files[0];
+    hint.textContent = f ? "เลือกไฟล์แล้ว: " + f.name + " (" + Math.max(1, Math.round(f.size / 1024)) + " KB)" : "";
+  }
+
+  document.addEventListener("paste", function (e) {
+    var input = document.querySelector("[data-paste-file]");
+    if (!input) return;
+    var files = e.clipboardData && e.clipboardData.files;
+    if (!files || !files.length) return; // plain-text paste — leave it alone
+    e.preventDefault();
+    var src = files[0];
+    var dt = new DataTransfer();
+    dt.items.add(new File([src], clipboardFileName(src), { type: src.type }));
+    input.files = dt.files;
+    showPasteHint(input);
+  });
+
+  document.addEventListener("change", function (e) {
+    if (e.target.matches("[data-paste-file]")) showPasteHint(e.target);
+  });
+
   // Impersonate pick.
   document.addEventListener("click", function (e) {
     var pick = e.target.closest("[data-impersonate-user]");

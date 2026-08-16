@@ -67,11 +67,15 @@ $tid = (int) $t['id'];
             <form data-ajax-form action="<?= Url::to('/tickets/' . $tid . '/files') ?>" data-refresh-ticket="<?= $tid ?>" enctype="multipart/form-data" class="mt-3 d-flex flex-column gap-2">
               <?= Csrf::field() ?>
               <div class="d-flex gap-2 flex-wrap">
-                <input type="file" name="file" class="form-control form-control-sm" style="max-width:240px">
+                <input type="file" name="file" class="form-control form-control-sm" style="max-width:240px" data-paste-file>
                 <input type="url" name="url" class="form-control form-control-sm" placeholder="หรือวางลิงก์ภายนอก" style="max-width:220px">
                 <input type="text" name="link_name" class="form-control form-control-sm" placeholder="ชื่อลิงก์ (ถ้ามี)" style="max-width:180px">
                 <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-paperclip"></i> แนบไฟล์ / เพิ่มลิงก์</button>
               </div>
+              <div class="text-body-secondary" style="font-size:.73rem">
+                <i class="bi bi-clipboard"></i> กด <kbd>Ctrl</kbd>+<kbd>V</kbd> เพื่อวางรูปภาพหรือไฟล์จากคลิปบอร์ดได้โดยตรง
+              </div>
+              <div data-paste-hint style="font-size:.75rem;color:#2563eb"></div>
             </form>
             <?php endif; ?>
           </div>
