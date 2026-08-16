@@ -95,6 +95,9 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         <a class="side-link <?= $currentPath === Url::to('/admin/audit') ? 'active' : '' ?>" href="<?= Url::to('/admin/audit') ?>">
           <i class="bi bi-clock-history"></i><span class="flex-fill">Audit Log</span>
         </a>
+        <a class="side-link <?= $currentPath === Url::to('/admin/migrations') ? 'active' : '' ?>" href="<?= Url::to('/admin/migrations') ?>">
+          <i class="bi bi-database-gear"></i><span class="flex-fill">Migration ฐานข้อมูล</span>
+        </a>
         <a class="side-link <?= $currentPath === Url::to('/admin/settings') ? 'active' : '' ?>" href="<?= Url::to('/admin/settings') ?>">
           <i class="bi bi-gear"></i><span class="flex-fill">ตั้งค่าระบบ</span>
         </a>

@@ -260,6 +260,19 @@ CREATE TABLE IF NOT EXISTS todo_logs (
     CONSTRAINT fk_tlog_todo FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ---------------------------------------------------------------------
+-- schema_migrations: tracks which files under database/migrations/*.sql
+-- have already been applied, via /admin/migrations. Also created lazily
+-- by App\Models\Migration on first use, so this is only needed for a
+-- fresh install to already have it.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    filename   VARCHAR(190) NOT NULL,
+    applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    applied_by INT UNSIGNED NULL,
+    PRIMARY KEY (filename)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ---------------------------------------------------------------------

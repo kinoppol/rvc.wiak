@@ -8,6 +8,7 @@ use App\Controllers\AuthController;
 use App\Controllers\AvatarController;
 use App\Controllers\CalendarController;
 use App\Controllers\DashboardController;
+use App\Controllers\MigrationController;
 use App\Controllers\OrgController;
 use App\Controllers\ProfileController;
 use App\Controllers\SettingsController;
@@ -61,6 +62,9 @@ $router->post('/admin/users/{id}/roles', [AdminController::class, 'updateRoles']
 $router->post('/admin/impersonate/{id}', [AdminController::class, 'impersonate']);
 $router->post('/admin/impersonate-stop', [AdminController::class, 'stopImpersonating']);
 $router->get('/admin/audit', [AdminController::class, 'auditLog']);
+
+$router->get('/admin/migrations', [MigrationController::class, 'index']);
+$router->post('/admin/migrations/run', [MigrationController::class, 'run']);
 
 $router->get('/avatar/{id}', [AvatarController::class, 'show']);
 
