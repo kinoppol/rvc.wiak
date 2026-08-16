@@ -56,9 +56,10 @@ final class TodoController extends Controller
         $this->html(View::render('partials/todo_form', ['todo' => null]));
     }
 
-    public function editForm(int $id): void
+    public function editForm(array $args): void
     {
         $user = $this->requireLogin();
+        $id = (int) $args['id'];
         $todo = Todo::find($id);
         if (!$todo || (int) $todo['user_id'] !== (int) $user['id']) {
             $this->json(['ok' => false, 'error' => 'ไม่พบรายการ'], 404);
@@ -70,7 +71,7 @@ final class TodoController extends Controller
     public function store(): void
     {
         $user = $this->requireLogin();
-        Csrf::verify();
+        Csrf::verifyRequestOrFail();
 
         $title = trim(Request::str('title'));
         if ($title === '') {
@@ -81,11 +82,12 @@ final class TodoController extends Controller
         $this->json(['ok' => true]);
     }
 
-    public function update(int $id): void
+    public function update(array $args): void
     {
         $user = $this->requireLogin();
-        Csrf::verify();
+        Csrf::verifyRequestOrFail();
 
+        $id = (int) $args['id'];
         $todo = Todo::find($id);
         if (!$todo || (int) $todo['user_id'] !== (int) $user['id']) {
             $this->json(['ok' => false, 'error' => 'ไม่พบรายการ'], 404);
@@ -100,27 +102,27 @@ final class TodoController extends Controller
         $this->json(['ok' => true]);
     }
 
-    public function markDone(int $id): void
+    public function markDone(array $args): void
     {
         $user = $this->requireLogin();
-        Csrf::verify();
-        $ok = Todo::markDone($id, (int) $user['id']);
+        Csrf::verifyRequestOrFail();
+        $ok = Todo::markDone((int) $args['id'], (int) $user['id']);
         $this->json($ok ? ['ok' => true] : ['ok' => false, 'error' => 'ไม่พบรายการ'], $ok ? 200 : 404);
     }
 
-    public function markMiss(int $id): void
+    public function markMiss(array $args): void
     {
         $user = $this->requireLogin();
-        Csrf::verify();
-        $ok = Todo::markMiss($id, (int) $user['id']);
+        Csrf::verifyRequestOrFail();
+        $ok = Todo::markMiss((int) $args['id'], (int) $user['id']);
         $this->json($ok ? ['ok' => true] : ['ok' => false, 'error' => 'ไม่พบรายการ'], $ok ? 200 : 404);
     }
 
-    public function delete(int $id): void
+    public function delete(array $args): void
     {
         $user = $this->requireLogin();
-        Csrf::verify();
-        $ok = Todo::delete($id, (int) $user['id']);
+        Csrf::verifyRequestOrFail();
+        $ok = Todo::delete((int) $args['id'], (int) $user['id']);
         $this->json($ok ? ['ok' => true] : ['ok' => false, 'error' => 'ไม่พบรายการ'], $ok ? 200 : 404);
     }
 }
