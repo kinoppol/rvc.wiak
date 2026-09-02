@@ -49,6 +49,76 @@ final class User
     }
 
     /**
+     * Find or create the local account for an Open Authenticator user object,
+     * refreshing full_name / email / department from the gateway on every
+     * login. Never touches created_at (an existing account may well predate
+     * SSO), mirroring PeopleSync. Brand-new accounts get the bare `staff`
+     * role, exactly like the RMS people-sync; re-login never changes roles.
+     *
+     * Matching order: (1) an account already linked by oa_user_id, then
+     * (2) an unlinked account with the same email (adopted and linked), then
+     * (3) a fresh account.
+     *
+     * @param array{id:int,email:string,first_name:string,last_name:string,department:string} $oa
+     */
+    public static function provisionFromOa(array $oa): ?array
+    {
+        $pdo = Database::pdo();
+        $fullName = trim($oa['first_name'] . ' ' . $oa['last_name']);
+        $email = $oa['email'] !== '' ? $oa['email'] : null;
+        $dept  = $oa['department'] !== '' ? $oa['department'] : null;
+
+        $st = $pdo->prepare('SELECT * FROM users WHERE oa_user_id = ? LIMIT 1');
+        $st->execute([$oa['id']]);
+        $user = $st->fetch() ?: null;
+
+        if (!$user && $email !== null) {
+            $st = $pdo->prepare('SELECT * FROM users WHERE email = ? AND oa_user_id IS NULL LIMIT 1');
+            $st->execute([$email]);
+            $user = $st->fetch() ?: null;
+        }
+
+        if ($user) {
+            $pdo->prepare(
+                'UPDATE users SET oa_user_id = ?, full_name = ?, email = COALESCE(?, email), department = COALESCE(?, department) WHERE id = ?'
+            )->execute([
+                $oa['id'],
+                $fullName !== '' ? $fullName : $user['full_name'],
+                $email,
+                $dept,
+                $user['id'],
+            ]);
+            return self::findById((int) $user['id']);
+        }
+
+        // New account. username is NOT NULL UNIQUE and password_hash is NOT
+        // NULL; an SSO-only user never password-logs-in, so the hash is random
+        // and unusable.
+        $username = 'oa:' . $oa['id'];
+        $unusableHash = password_hash(bin2hex(random_bytes(18)), PASSWORD_DEFAULT);
+        $pdo->prepare(
+            'INSERT INTO users (username, password_hash, full_name, email, department, oa_user_id, icon) VALUES (?,?,?,?,?,?,?)'
+        )->execute([
+            $username,
+            $unusableHash,
+            $fullName !== '' ? $fullName : $username,
+            $email,
+            $dept,
+            $oa['id'],
+            'person-workspace',
+        ]);
+        $userId = (int) $pdo->lastInsertId();
+
+        $staffRoleId = Role::find('staff')['id'] ?? null;
+        if ($staffRoleId !== null) {
+            $pdo->prepare('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)')
+                ->execute([$userId, $staffRoleId]);
+        }
+
+        return self::findById($userId);
+    }
+
+    /**
      * Replace a user's full set of role assignments, together with the org
      * unit(s) each role is scoped to.
      *

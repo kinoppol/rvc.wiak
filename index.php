@@ -9,6 +9,7 @@ use App\Controllers\AvatarController;
 use App\Controllers\CalendarController;
 use App\Controllers\DashboardController;
 use App\Controllers\MigrationController;
+use App\Controllers\OaAuthController;
 use App\Controllers\OrgController;
 use App\Controllers\ProfileController;
 use App\Controllers\SettingsController;
@@ -22,6 +23,12 @@ $router = new Router();
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->post('/logout', [AuthController::class, 'logout']);
+
+// Open Authenticator (SSO). The callback path must equal the redirect_uri
+// registered with the gateway (config/oa.php) byte-for-byte.
+$router->get('/auth/oa/start', [OaAuthController::class, 'start']);
+$router->get('/web/api/callback.php', [OaAuthController::class, 'callback']);
+$router->post('/web/api/callback.php', [OaAuthController::class, 'callback']);
 
 $router->get('/', [DashboardController::class, 'index']);
 $router->get('/board', [DashboardController::class, 'board']);

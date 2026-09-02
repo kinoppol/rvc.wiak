@@ -29,6 +29,12 @@ use App\Core\View;
         </div>
         <button type="submit" class="btn btn-primary">เข้าสู่ระบบ</button>
       </form>
+      <div class="d-flex align-items-center gap-2 my-3 text-body-secondary" style="font-size:.75rem">
+        <hr class="flex-grow-1 my-0"><span>หรือ</span><hr class="flex-grow-1 my-0">
+      </div>
+      <a href="<?= Url::to('/auth/oa/start') ?>" class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2">
+        <i class="bi bi-shield-lock"></i> ลงชื่อเข้าใช้ผ่านระบบ Open Authenticator
+      </a>
     </div>
   </div>
 </div>

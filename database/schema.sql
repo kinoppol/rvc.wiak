@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(150) NULL,
     icon          VARCHAR(40)  NOT NULL DEFAULT 'person-fill',
     avatar_path   VARCHAR(255) NULL COMMENT 'relative path under storage/uploads/avatars, downloaded from the RMS people_pic on sync',
+    oa_user_id    INT UNSIGNED NULL UNIQUE COMMENT 'Open Authenticator gateway user id; NULL for password-only accounts',
     department    VARCHAR(150) NULL,
     is_active     TINYINT(1)   NOT NULL DEFAULT 1,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -39,6 +40,8 @@ CREATE TABLE IF NOT EXISTS users (
 -- (schema.sql is re-run as-is on reinstall; CREATE TABLE IF NOT EXISTS above
 -- is a no-op against an existing users table).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_path VARCHAR(255) NULL AFTER icon;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS oa_user_id INT UNSIGNED NULL AFTER avatar_path;
+ALTER TABLE users ADD UNIQUE INDEX IF NOT EXISTS uq_users_oa_user_id (oa_user_id);
 
 CREATE TABLE IF NOT EXISTS user_roles (
     user_id INT UNSIGNED NOT NULL,

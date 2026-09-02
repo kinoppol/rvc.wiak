@@ -28,6 +28,13 @@ if (!is_file($configFile)) {
 /** @var array<string,mixed> $config */
 $config = require $configFile;
 
+// Open Authenticator (SSO) settings: committed defaults in config/oa.php,
+// optionally overridden per-key by an 'oa' block in config/config.php.
+$config['oa'] = array_merge(
+    require APP_ROOT . '/config/oa.php',
+    is_array($config['oa'] ?? null) ? $config['oa'] : []
+);
+
 date_default_timezone_set($config['app']['timezone'] ?? 'Asia/Bangkok');
 
 error_reporting(E_ALL);
@@ -35,6 +42,7 @@ ini_set('display_errors', !empty($config['app']['debug']) ? '1' : '0');
 
 App\Core\Database::configure($config['db']);
 App\Core\Upload::configure($config['upload']);
+App\Core\Oa::configure($config['oa']);
 
 session_name('rvcwiak_session');
 session_set_cookie_params([

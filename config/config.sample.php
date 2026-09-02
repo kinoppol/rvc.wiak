@@ -18,6 +18,12 @@ return [
         'pass' => '',
         'charset' => 'utf8mb4',
     ],
+    // Open Authenticator (SSO). Real defaults live in config/oa.php and are
+    // used as-is — only add this block to override a key for a non-standard
+    // deployment (e.g. a different callback host).
+    // 'oa' => [
+    //     'redirect_uri' => 'https://wiak.rvc.ac.th/web/api/callback.php',
+    // ],
     'upload' => [
         // Absolute filesystem path to the upload directory.
         'path' => __DIR__ . '/../storage/uploads',
