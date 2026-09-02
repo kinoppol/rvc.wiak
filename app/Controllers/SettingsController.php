@@ -45,6 +45,8 @@ final class SettingsController extends Controller
             'urgentHours' => max(1, (int) Setting::get('notify_urgent_hours', '24')),
             'notifySaved' => Request::str('notifySaved') === '1',
             'oaEnabled' => Oa::isEnabled(),
+            'oaButtonLabel' => Oa::buttonLabel(),
+            'oaButtonLabelDefault' => Oa::DEFAULT_BUTTON_LABEL,
             'oaAuthorizeUrl' => Oa::get('authorize_url'),
             'oaVerifyUrl' => Oa::get('verify_token_url'),
             'oaClientId' => Oa::get('client_id'),
@@ -64,6 +66,7 @@ final class SettingsController extends Controller
         $clientId = Request::str('client_id');
         $redirectUri = Request::str('redirect_uri');
         $enabled = Request::str('enabled') === '1';
+        $buttonLabel = mb_substr(Request::str('button_label'), 0, 120);
 
         foreach (['Authorization endpoint' => $authorizeUrl, 'Token verify endpoint' => $verifyUrl, 'redirect_uri' => $redirectUri] as $label => $u) {
             $p = parse_url($u);
@@ -76,6 +79,7 @@ final class SettingsController extends Controller
         }
 
         Setting::set('oa_enabled', $enabled ? '1' : '0');
+        Setting::set('oa_button_label', $buttonLabel !== '' ? $buttonLabel : Oa::DEFAULT_BUTTON_LABEL);
         Setting::set('oa_authorize_url', $authorizeUrl);
         Setting::set('oa_verify_token_url', $verifyUrl);
         Setting::set('oa_client_id', $clientId);

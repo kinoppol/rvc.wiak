@@ -22,6 +22,9 @@ final class Oa
     /** Keys an admin may override from /admin/settings (stored as `oa_<key>`). */
     public const OVERRIDABLE = ['authorize_url', 'verify_token_url', 'client_id', 'redirect_uri'];
 
+    /** Default caption for the login-page SSO button (admin-overridable). */
+    public const DEFAULT_BUTTON_LABEL = 'ลงชื่อเข้าใช้ผ่านระบบ Open Authenticator';
+
     /** @var array<string,mixed> file defaults from config/oa.php */
     private static array $cfg = [];
 
@@ -57,8 +60,11 @@ final class Oa
             }
             $enabled = \App\Models\Setting::get('oa_enabled');
             $out['enabled'] = $enabled === null ? true : $enabled === '1';
+            $label = \App\Models\Setting::get('oa_button_label');
+            $out['button_label'] = ($label !== null && trim($label) !== '') ? $label : self::DEFAULT_BUTTON_LABEL;
         } catch (\Throwable $e) {
             $out['enabled'] = $out['enabled'] ?? true;
+            $out['button_label'] = $out['button_label'] ?? self::DEFAULT_BUTTON_LABEL;
         }
         return self::$merged = $out;
     }
@@ -72,6 +78,13 @@ final class Oa
     public static function isEnabled(): bool
     {
         return (bool) (self::merged()['enabled'] ?? true);
+    }
+
+    /** Caption for the login-page SSO button (admin-overridable). */
+    public static function buttonLabel(): string
+    {
+        $label = (string) (self::merged()['button_label'] ?? '');
+        return $label !== '' ? $label : self::DEFAULT_BUTTON_LABEL;
     }
 
     /** URL to send the browser to, carrying our anti-CSRF state. */

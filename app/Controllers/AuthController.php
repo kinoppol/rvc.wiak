@@ -17,7 +17,7 @@ final class AuthController extends Controller
         if (Auth::user()) {
             $this->redirect('/');
         }
-        $this->page('auth/login', ['error' => null, 'oaEnabled' => Oa::isEnabled()]);
+        $this->page('auth/login', ['error' => null, 'oaEnabled' => Oa::isEnabled(), 'oaButtonLabel' => Oa::buttonLabel()]);
     }
 
     public function login(): void
@@ -28,7 +28,7 @@ final class AuthController extends Controller
 
         $user = User::findByUsername($username);
         if (!$user || !$user['is_active'] || !User::verifyPassword($user, $password)) {
-            $this->page('auth/login', ['error' => 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'oaEnabled' => Oa::isEnabled()]);
+            $this->page('auth/login', ['error' => 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'oaEnabled' => Oa::isEnabled(), 'oaButtonLabel' => Oa::buttonLabel()]);
             return;
         }
         Auth::login($user);

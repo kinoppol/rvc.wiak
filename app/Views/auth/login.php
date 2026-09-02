@@ -4,6 +4,7 @@ use App\Core\Url;
 use App\Core\View;
 /** @var string|null $error */
 /** @var bool $oaEnabled */
+/** @var string $oaButtonLabel */
 ?>
 <div style="min-height:100vh;display:grid;place-items:center;background:var(--bs-tertiary-bg,#f1f5f9);padding:20px">
   <div class="card border-0 shadow-lg" style="width:min(420px,100%);border-radius:16px">
@@ -35,7 +36,7 @@ use App\Core\View;
           <hr class="flex-grow-1 my-0"><span>หรือ</span><hr class="flex-grow-1 my-0">
         </div>
         <a href="<?= Url::to('/auth/oa/start') ?>" class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2">
-          <i class="bi bi-shield-lock"></i> ลงชื่อเข้าใช้ผ่านระบบ Open Authenticator
+          <i class="bi bi-shield-lock"></i> <?= View::e(!empty($oaButtonLabel) ? $oaButtonLabel : 'ลงชื่อเข้าใช้ผ่านระบบ Open Authenticator') ?>
         </a>
       <?php endif; ?>
     </div>

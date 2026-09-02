@@ -10,6 +10,8 @@ use App\Core\View;
 /** @var bool $synced */
 /** @var string $syncError */
 /** @var bool $oaEnabled */
+/** @var string $oaButtonLabel */
+/** @var string $oaButtonLabelDefault */
 /** @var string $oaAuthorizeUrl */
 /** @var string $oaVerifyUrl */
 /** @var string $oaClientId */
@@ -75,8 +77,12 @@ use App\Core\View;
         <div class="form-check form-switch">
           <input type="hidden" name="enabled" value="0">
           <input class="form-check-input" type="checkbox" role="switch" id="oa-enabled" name="enabled" value="1" <?= $oaEnabled ? 'checked' : '' ?>>
-          <label class="form-check-label" for="oa-enabled" style="font-size:.85rem">แสดงปุ่ม “ลงชื่อเข้าใช้ผ่านระบบ Open Authenticator” ในหน้าเข้าสู่ระบบ</label>
+          <label class="form-check-label" for="oa-enabled" style="font-size:.85rem">แสดงปุ่มเข้าสู่ระบบผ่าน Open Authenticator ในหน้าเข้าสู่ระบบ</label>
         </div>
+
+        <label class="form-label mt-1" style="font-size:.82rem">ข้อความบนปุ่ม</label>
+        <input type="text" name="button_label" maxlength="120" class="form-control form-control-sm" style="max-width:420px" value="<?= View::e($oaButtonLabel) ?>" placeholder="<?= View::e($oaButtonLabelDefault) ?>">
+        <div class="text-body-secondary" style="font-size:.72rem">เว้นว่างเพื่อใช้ข้อความเริ่มต้น: “<?= View::e($oaButtonLabelDefault) ?>”</div>
 
         <label class="form-label mt-1" style="font-size:.82rem">Authorization endpoint</label>
         <input type="text" name="authorize_url" class="form-control form-control-sm" style="max-width:420px;font-family:ui-monospace,monospace" value="<?= View::e($oaAuthorizeUrl) ?>" placeholder="http://workspace.rvc.ac.th/oa/index.php" required>
