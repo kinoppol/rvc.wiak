@@ -24,11 +24,13 @@ $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->post('/logout', [AuthController::class, 'logout']);
 
-// Open Authenticator (SSO). The callback path must equal the redirect_uri
-// registered with the gateway (config/oa.php) byte-for-byte.
+// Open Authenticator (SSO). The registered redirect_uri is
+// https://wiak.rvc.ac.th/web/api/callback.php ; the app's base path in
+// production is "/web", which Request::path() strips, so the route is
+// registered app-relative as /api/callback.php.
 $router->get('/auth/oa/start', [OaAuthController::class, 'start']);
-$router->get('/web/api/callback.php', [OaAuthController::class, 'callback']);
-$router->post('/web/api/callback.php', [OaAuthController::class, 'callback']);
+$router->get('/api/callback.php', [OaAuthController::class, 'callback']);
+$router->post('/api/callback.php', [OaAuthController::class, 'callback']);
 
 $router->get('/', [DashboardController::class, 'index']);
 $router->get('/board', [DashboardController::class, 'board']);
