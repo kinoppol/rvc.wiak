@@ -28,6 +28,9 @@ final class OaAuthController extends Controller
         if (Auth::user()) {
             $this->redirect('/');
         }
+        if (!Oa::isEnabled()) {
+            $this->redirect('/login');
+        }
         $state = bin2hex(random_bytes(32));
         $_SESSION['oa_state'] = $state;
         header('Location: ' . Oa::authorizeUrl($state));
@@ -36,6 +39,10 @@ final class OaAuthController extends Controller
 
     public function callback(): void
     {
+        if (!Oa::isEnabled()) {
+            $this->message('ปิดใช้งานอยู่', 'การเข้าสู่ระบบผ่าน Open Authenticator ถูกปิดใช้งานโดยผู้ดูแลระบบ', 403);
+        }
+
         if (Request::method() === 'GET') {
             // The only legitimate GET here is the user declining the gateway's
             // auth/consent screen.

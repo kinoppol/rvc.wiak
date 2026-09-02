@@ -19,18 +19,59 @@ namespace App\Core;
  */
 final class Oa
 {
-    /** @var array<string,mixed> */
+    /** Keys an admin may override from /admin/settings (stored as `oa_<key>`). */
+    public const OVERRIDABLE = ['authorize_url', 'verify_token_url', 'client_id', 'redirect_uri'];
+
+    /** @var array<string,mixed> file defaults from config/oa.php */
     private static array $cfg = [];
+
+    /** @var array<string,mixed>|null file defaults + settings-table overrides, per request */
+    private static ?array $merged = null;
 
     /** @param array<string,mixed> $cfg */
     public static function configure(array $cfg): void
     {
         self::$cfg = $cfg;
+        self::$merged = null;
+    }
+
+    /**
+     * File defaults with any admin overrides from the `settings` table layered
+     * on top. Falls back to file config alone if the settings table isn't there
+     * yet (fresh install, before migrations).
+     *
+     * @return array<string,mixed>
+     */
+    private static function merged(): array
+    {
+        if (self::$merged !== null) {
+            return self::$merged;
+        }
+        $out = self::$cfg;
+        try {
+            foreach (self::OVERRIDABLE as $key) {
+                $v = \App\Models\Setting::get('oa_' . $key);
+                if ($v !== null && $v !== '') {
+                    $out[$key] = $v;
+                }
+            }
+            $enabled = \App\Models\Setting::get('oa_enabled');
+            $out['enabled'] = $enabled === null ? true : $enabled === '1';
+        } catch (\Throwable $e) {
+            $out['enabled'] = $out['enabled'] ?? true;
+        }
+        return self::$merged = $out;
     }
 
     public static function get(string $key): string
     {
-        return (string) (self::$cfg[$key] ?? '');
+        return (string) (self::merged()[$key] ?? '');
+    }
+
+    /** Whether SSO login is offered at all (admin toggle at /admin/settings). */
+    public static function isEnabled(): bool
+    {
+        return (bool) (self::merged()['enabled'] ?? true);
     }
 
     /** URL to send the browser to, carrying our anti-CSRF state. */
@@ -58,7 +99,7 @@ final class Oa
             return null;
         }
 
-        $timeout = (int) (self::$cfg['http_timeout'] ?? 8);
+        $timeout = (int) (self::merged()['http_timeout'] ?? 8);
         $ch = curl_init(self::get('verify_token_url'));
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,

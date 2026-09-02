@@ -9,6 +9,13 @@ use App\Core\View;
 /** @var bool $urlUpdated */
 /** @var bool $synced */
 /** @var string $syncError */
+/** @var bool $oaEnabled */
+/** @var string $oaAuthorizeUrl */
+/** @var string $oaVerifyUrl */
+/** @var string $oaClientId */
+/** @var string $oaRedirectUri */
+/** @var bool $oaSaved */
+/** @var string $oaError */
 ?>
 <div class="d-flex flex-column gap-3" style="max-width:760px">
 
@@ -39,6 +46,53 @@ use App\Core\View;
         </div>
         <div class="text-body-secondary" style="font-size:.72rem;font-family:ui-monospace,monospace">endpoint: <?= View::e($baseUrl) ?>/api_connection.php?app_name=nutty&amp;data=people</div>
       </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm" style="border-radius:14px">
+    <div class="card-body">
+      <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-shield-lock"></i> การเข้าสู่ระบบผ่าน Open Authenticator (SSO)</div>
+      <div class="text-body-secondary mb-3" style="font-size:.78rem">เชื่อมโยงหน้าเข้าสู่ระบบกับ Open Authenticator gateway — ผู้ใช้ยืนยันตัวตนที่ gateway (รหัสผ่าน + OTP ถ้าเปิดใช้) แล้วระบบสร้าง session ให้อัตโนมัติ</div>
+
+      <?php if ($oaSaved): ?>
+        <div class="alert alert-success py-2" style="font-size:.85rem"><i class="bi bi-check-circle"></i> บันทึกการตั้งค่า SSO แล้ว</div>
+      <?php endif; ?>
+      <?php if ($oaError): ?>
+        <div class="alert alert-danger py-2" style="font-size:.85rem"><i class="bi bi-exclamation-triangle"></i> <?= View::e($oaError) ?></div>
+      <?php endif; ?>
+
+      <div class="mb-3" style="font-size:.8rem;background:var(--bs-tertiary-bg);border-radius:9px;padding:10px 12px">
+        <div class="mb-1" style="font-weight:600"><i class="bi bi-link-45deg"></i> Callback URL — นำค่านี้ไปลงทะเบียน (redirect_uri) ในระบบ Open Authenticator</div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <input type="text" id="oa-callback" class="form-control form-control-sm" style="max-width:420px;font-family:ui-monospace,monospace" value="<?= View::e($oaRedirectUri) ?>" readonly onclick="this.select()">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-copy="#oa-callback"><i class="bi bi-clipboard"></i> คัดลอก</button>
+        </div>
+        <div class="text-body-secondary mt-1" style="font-size:.72rem">ต้องตรงกับที่ลงทะเบียนไว้กับ gateway ทุกตัวอักษร (รวม scheme / เครื่องหมาย / ไม่มี “/” ท้าย)</div>
+      </div>
+
+      <form method="post" action="<?= Url::to('/admin/settings/oauth') ?>" class="d-flex flex-column gap-2">
+        <?= Csrf::field() ?>
+        <div class="form-check form-switch">
+          <input type="hidden" name="enabled" value="0">
+          <input class="form-check-input" type="checkbox" role="switch" id="oa-enabled" name="enabled" value="1" <?= $oaEnabled ? 'checked' : '' ?>>
+          <label class="form-check-label" for="oa-enabled" style="font-size:.85rem">แสดงปุ่ม “ลงชื่อเข้าใช้ผ่านระบบ Open Authenticator” ในหน้าเข้าสู่ระบบ</label>
+        </div>
+
+        <label class="form-label mt-1" style="font-size:.82rem">Authorization endpoint</label>
+        <input type="text" name="authorize_url" class="form-control form-control-sm" style="max-width:420px;font-family:ui-monospace,monospace" value="<?= View::e($oaAuthorizeUrl) ?>" placeholder="http://workspace.rvc.ac.th/oa/index.php" required>
+
+        <label class="form-label mt-1" style="font-size:.82rem">Token verify endpoint</label>
+        <input type="text" name="verify_token_url" class="form-control form-control-sm" style="max-width:420px;font-family:ui-monospace,monospace" value="<?= View::e($oaVerifyUrl) ?>" placeholder="http://workspace.rvc.ac.th/oa/api/verify_token.php" required>
+
+        <label class="form-label mt-1" style="font-size:.82rem">client_id</label>
+        <input type="text" name="client_id" class="form-control form-control-sm" style="max-width:220px" value="<?= View::e($oaClientId) ?>" required>
+
+        <label class="form-label mt-1" style="font-size:.82rem">redirect_uri</label>
+        <input type="text" name="redirect_uri" class="form-control form-control-sm" style="max-width:420px;font-family:ui-monospace,monospace" value="<?= View::e($oaRedirectUri) ?>" required>
+
+        <div><button type="submit" class="btn btn-sm btn-primary mt-2">บันทึกการตั้งค่า SSO</button></div>
+      </form>
+      <div class="form-text mt-2" style="font-size:.72rem">ค่าเริ่มต้นมาจากไฟล์ <code>config/oa.php</code> — ค่าที่บันทึกที่นี่จะถูกใช้แทน</div>
     </div>
   </div>
 

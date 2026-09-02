@@ -258,4 +258,26 @@
       postJson("/role-switch", { role: e.target.value }).then(function () { location.reload(); });
     }
   });
+
+  // Copy-to-clipboard buttons: <button data-copy="#selector"> copies that
+  // element's value/text; <button data-copy-text="..."> copies a literal.
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-copy], [data-copy-text]");
+    if (!btn) return;
+    var sel = btn.getAttribute("data-copy");
+    var el = sel ? document.querySelector(sel) : null;
+    var text = el ? (el.value != null ? el.value : el.textContent) : btn.getAttribute("data-copy-text");
+    if (text == null) return;
+    var flash = function () {
+      var old = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check2"></i> คัดลอกแล้ว';
+      setTimeout(function () { btn.innerHTML = old; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(flash, function () {});
+    } else if (el && el.select) {
+      el.select();
+      try { document.execCommand("copy"); flash(); } catch (err) {}
+    }
+  });
 })();

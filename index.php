@@ -79,6 +79,7 @@ $router->get('/admin/settings', [SettingsController::class, 'index']);
 $router->post('/admin/settings/url', [SettingsController::class, 'updateUrl']);
 $router->post('/admin/settings/sync', [SettingsController::class, 'sync']);
 $router->post('/admin/settings/notify', [SettingsController::class, 'updateNotify']);
+$router->post('/admin/settings/oauth', [SettingsController::class, 'updateOauth']);
 
 // {type} is one of OrgUnit::TYPES — validated in the controller before use.
 $router->get('/admin/org', [OrgController::class, 'index']);

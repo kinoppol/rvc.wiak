@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
+use App\Core\Oa;
 use App\Core\Request;
 use App\Models\AuditLog;
 use App\Models\Setting;
@@ -43,7 +44,52 @@ final class SettingsController extends Controller
             'warnDaysDefault' => max(1, (int) Setting::get('notify_warn_days_default', '3')),
             'urgentHours' => max(1, (int) Setting::get('notify_urgent_hours', '24')),
             'notifySaved' => Request::str('notifySaved') === '1',
+            'oaEnabled' => Oa::isEnabled(),
+            'oaAuthorizeUrl' => Oa::get('authorize_url'),
+            'oaVerifyUrl' => Oa::get('verify_token_url'),
+            'oaClientId' => Oa::get('client_id'),
+            'oaRedirectUri' => Oa::get('redirect_uri'),
+            'oaSaved' => Request::str('oaSaved') === '1',
+            'oaError' => Request::str('oaError'),
         ]);
+    }
+
+    public function updateOauth(): void
+    {
+        $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+
+        $authorizeUrl = rtrim(Request::str('authorize_url'), '/');
+        $verifyUrl = rtrim(Request::str('verify_token_url'), '/');
+        $clientId = Request::str('client_id');
+        $redirectUri = Request::str('redirect_uri');
+        $enabled = Request::str('enabled') === '1';
+
+        foreach (['Authorization endpoint' => $authorizeUrl, 'Token verify endpoint' => $verifyUrl, 'redirect_uri' => $redirectUri] as $label => $u) {
+            $p = parse_url($u);
+            if ($u === '' || empty($p['scheme']) || empty($p['host']) || !in_array($p['scheme'], ['http', 'https'], true)) {
+                $this->redirect('/admin/settings?oaError=' . rawurlencode("URL ไม่ถูกต้อง: {$label}"));
+            }
+        }
+        if ($clientId === '') {
+            $this->redirect('/admin/settings?oaError=' . rawurlencode('ต้องระบุ client_id'));
+        }
+
+        Setting::set('oa_enabled', $enabled ? '1' : '0');
+        Setting::set('oa_authorize_url', $authorizeUrl);
+        Setting::set('oa_verify_token_url', $verifyUrl);
+        Setting::set('oa_client_id', $clientId);
+        Setting::set('oa_redirect_uri', $redirectUri);
+        AuditLog::record(
+            (int) Auth::realUser()['id'],
+            null,
+            'settings.update_oauth',
+            'setting',
+            null,
+            'enabled=' . ($enabled ? '1' : '0') . " client_id={$clientId}"
+        );
+
+        $this->redirect('/admin/settings?oaSaved=1');
     }
 
     public function updateNotify(): void
