@@ -12,7 +12,14 @@ use App\Models\AuditLog;
 use App\Models\User;
 
 /**
- * Open Authenticator (SSO) login. See App\Core\Oa for the flow overview.
+ * RVC-ONE (Open Authenticator) SSO login. See App\Core\Oa for the flow overview.
+ *
+ * Two entry points end at the same callback:
+ *  - SP-initiated: our login button → start() mints `state` → gateway → callback.
+ *  - IdP-initiated: the user clicks this app's tile on the RVC-ONE Workspace
+ *    page. The tile is configured with our start() URL, so it normally goes
+ *    through start() too; a gateway that posts straight to the callback sends
+ *    an empty `state`, which we accept only when we never minted one.
  *
  * The callback is a cross-origin POST from the gateway. It carries no app CSRF
  * token — `state` (minted in start(), stored in the session, one-time) is the
@@ -40,7 +47,7 @@ final class OaAuthController extends Controller
     public function callback(): void
     {
         if (!Oa::isEnabled()) {
-            $this->message('ปิดใช้งานอยู่', 'การเข้าสู่ระบบผ่าน Open Authenticator ถูกปิดใช้งานโดยผู้ดูแลระบบ', 403);
+            $this->message('ปิดใช้งานอยู่', 'การเข้าสู่ระบบผ่าน RVC-ONE ถูกปิดใช้งานโดยผู้ดูแลระบบ', 403);
         }
 
         if (Request::method() === 'GET') {
@@ -50,7 +57,7 @@ final class OaAuthController extends Controller
                 unset($_SESSION['oa_state']);
                 $this->message(
                     'ยกเลิกการเข้าสู่ระบบ',
-                    'คุณไม่ได้อนุญาตให้ระบบ Open Authenticator แชร์ข้อมูลกับแอปนี้',
+                    'คุณไม่ได้อนุญาตให้ระบบ RVC-ONE แชร์ข้อมูลกับแอปนี้',
                     200
                 );
             }
@@ -62,10 +69,15 @@ final class OaAuthController extends Controller
         }
 
         // POST from the gateway. Check state before doing anything else.
+        // If we minted one it must match (anti-CSRF). If we didn't and none was
+        // posted, this is an IdP-initiated login from the Workspace page — let
+        // it through; the real gate is the server-side token verify below.
         $expected = $_SESSION['oa_state'] ?? null;
         unset($_SESSION['oa_state']); // one-time use, pass or fail
         $state = Request::str('state');
-        if (!is_string($expected) || $expected === '' || !hash_equals($expected, $state)) {
+        $hasExpected = is_string($expected) && $expected !== '';
+        $stateOk = $hasExpected ? hash_equals($expected, $state) : $state === '';
+        if (!$stateOk) {
             $this->message(
                 'คำขอไม่ถูกต้อง',
                 'การตรวจสอบความปลอดภัย (state) ไม่ผ่าน กรุณาเริ่มการเข้าสู่ระบบใหม่',
@@ -77,7 +89,7 @@ final class OaAuthController extends Controller
         if ($oaUser === null) {
             $this->message(
                 'เข้าสู่ระบบไม่สำเร็จ',
-                'ไม่สามารถยืนยันตัวตนกับระบบ Open Authenticator ได้ '
+                'ไม่สามารถยืนยันตัวตนกับระบบ RVC-ONE ได้ '
                     . '(โทเคนไม่ถูกต้อง หมดอายุ หรือระบบยืนยันตัวตนไม่ตอบสนอง)',
                 401
             );

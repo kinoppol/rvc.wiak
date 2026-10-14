@@ -1,8 +1,8 @@
 <?php
 /**
- * Open Authenticator (SSO) connection settings.
+ * RVC-ONE (Open Authenticator) connection settings — SSO login + User-sync API.
  *
- * These are NOT secrets — this flow has no client_secret. The browser already
+ * These are NOT secrets — the SSO flow has no client_secret. The browser already
  * sees client_id and redirect_uri, and token verification is a server-to-server
  * call keyed only by the one-time token_key handed back through the callback.
  * So they live in this committed file (not the git-ignored config/config.php),
@@ -32,4 +32,16 @@ return [
     // Seconds to wait on the verify_token call before giving up (the gateway's
     // tokens live only 5 minutes, so a slow verify is a failed login).
     'http_timeout' => 8,
+
+    // User-sync API (server-to-server, see App\Services\OaUserSync). It DOES
+    // need a client_secret — that one is a real secret and must never be
+    // committed here: set the OA_CLIENT_SECRET environment variable, or add
+    // 'oa' => ['client_secret' => '...'] to the git-ignored config/config.php.
+    'users_url' => 'http://workspace.rvc.ac.th/oa/api/users.php',
+
+    // User types this app is licensed for at the gateway (staff | student | all).
+    'sync_type' => 'staff',
+
+    // Users per page (1–1000).
+    'sync_page_size' => 500,
 ];

@@ -8,9 +8,11 @@ use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Oa;
 use App\Core\Request;
+use App\Core\Url;
 use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\OaUserSync;
 use App\Services\PeopleSync;
 use Throwable;
 
@@ -32,6 +34,8 @@ final class SettingsController extends Controller
 
         $summaryJson = Setting::get('people_sync_last_summary');
         $lastSummary = $summaryJson ? json_decode($summaryJson, true) : null;
+        $oaSyncJson = Setting::get(OaUserSync::SUMMARY_KEY);
+        $oaSyncSummary = $oaSyncJson ? json_decode($oaSyncJson, true) : null;
 
         $this->page('admin/settings', [
             'pageTitle' => 'ตั้งค่าระบบ',
@@ -53,7 +57,57 @@ final class SettingsController extends Controller
             'oaRedirectUri' => Oa::get('redirect_uri'),
             'oaSaved' => Request::str('oaSaved') === '1',
             'oaError' => Request::str('oaError'),
+            'oaStartUrl' => self::publicUrl('/auth/oa/start', Oa::get('redirect_uri')),
+            'oaUsersUrl' => Oa::get('users_url'),
+            'oaSyncType' => Oa::get('sync_type'),
+            'oaSecretSet' => Oa::clientSecret() !== '',
+            'oaSyncSince' => Setting::get(OaUserSync::SINCE_KEY),
+            'oaSyncLastRunAt' => Setting::get(OaUserSync::LAST_RUN_KEY),
+            'oaSyncSummary' => is_array($oaSyncSummary) ? $oaSyncSummary : null,
+            'oaSynced' => Request::str('oaSynced') === '1',
+            'oaSyncError' => Request::str('oaSyncError'),
         ]);
+    }
+
+    /**
+     * Absolute URL of an app route, for pasting into another system (the
+     * RVC-ONE app's "SSO start URL" field). Uses the registered redirect_uri's
+     * scheme when we're on its host — behind Cloudflare the origin request may
+     * look like plain http even though the public URL is https.
+     */
+    private static function publicUrl(string $path, string $redirectUri): string
+    {
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $r = parse_url($redirectUri);
+        if (is_array($r) && ($r['host'] ?? '') === $host && !empty($r['scheme'])) {
+            $scheme = $r['scheme'];
+        } else {
+            $https = ($_SERVER['HTTPS'] ?? '') !== '' && ($_SERVER['HTTPS'] ?? '') !== 'off';
+            $scheme = $https || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https' ? 'https' : 'http';
+        }
+        return $scheme . '://' . $host . Url::to($path);
+    }
+
+    public function oaSync(): void
+    {
+        $user = $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+        $full = Request::str('full') === '1';
+
+        try {
+            $r = OaUserSync::run($full);
+            AuditLog::record(
+                (int) Auth::realUser()['id'],
+                Auth::isImpersonating() ? (int) $user['id'] : null,
+                'oa_users.sync',
+                null,
+                null,
+                "mode={$r['mode']} created={$r['created']} updated={$r['updated']} suspended={$r['suspended']} skipped={$r['skipped']} failed={$r['failed']} total={$r['total']}"
+            );
+            $this->redirect('/admin/settings?oaSynced=1');
+        } catch (Throwable $e) {
+            $this->redirect('/admin/settings?oaSyncError=' . rawurlencode($e->getMessage()));
+        }
     }
 
     public function updateOauth(): void

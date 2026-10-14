@@ -44,13 +44,16 @@ App\Core\Database::configure($config['db']);
 App\Core\Upload::configure($config['upload']);
 App\Core\Oa::configure($config['oa']);
 
-session_name('rvcwiak_session');
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path' => rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/') ?: '/',
-    'httponly' => true,
-    'samesite' => 'Lax',
-]);
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// No session for CLI scripts (cli/oa-user-sync.php under cron).
+if (PHP_SAPI !== 'cli') {
+    session_name('rvcwiak_session');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/') ?: '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
 }

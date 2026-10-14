@@ -49,55 +49,72 @@ final class User
     }
 
     /**
-     * Find or create the local account for an Open Authenticator user object,
-     * refreshing full_name / email / department from the gateway on every
-     * login. Never touches created_at (an existing account may well predate
-     * SSO), mirroring PeopleSync. Brand-new accounts get the bare `staff`
-     * role, exactly like the RMS people-sync; re-login never changes roles.
+     * Find or create the local account for an RVC-ONE user object at SSO
+     * login. Never changes is_active — only the User-sync knows a user's
+     * gateway status. See upsertFromOa().
      *
-     * Matching order: (1) an account already linked by oa_user_id, then
-     * (2) an unlinked account with the same email (adopted and linked), then
-     * (3) a fresh account.
-     *
-     * @param array{id:int,email:string,first_name:string,last_name:string,department:string} $oa
+     * @param array{id:int,email:string,first_name:string,last_name:string,department:string,national_id:string} $oa
      */
     public static function provisionFromOa(array $oa): ?array
+    {
+        return self::upsertFromOa($oa)['user'];
+    }
+
+    /**
+     * Idempotent upsert of an RVC-ONE user object (from verify_token at login
+     * or from the users.php sync API — both carry the same gateway user id),
+     * refreshing full_name / email / department every time. Never touches
+     * created_at (an existing account may well predate SSO), mirroring
+     * PeopleSync. Brand-new accounts get the bare `staff` role, exactly like
+     * the RMS people-sync; an existing account's roles are never changed.
+     *
+     * Matching order: (1) an account already linked by oa_user_id, then
+     * (2) an unlinked account whose username is the user's national ID — the
+     * key the RMS people-sync creates accounts under, so those get adopted
+     * rather than duplicated — then (3) an unlinked account with the same
+     * email, then (4) a fresh account.
+     *
+     * $active: null leaves is_active alone (SSO login); true/false sets it
+     * (User-sync: status active / suspended).
+     *
+     * @param array{id:int,email:string,first_name:string,last_name:string,department:string,national_id:string} $oa
+     * @return array{user:?array,created:bool}
+     */
+    public static function upsertFromOa(array $oa, ?bool $active = null): array
     {
         $pdo = Database::pdo();
         $fullName = trim($oa['first_name'] . ' ' . $oa['last_name']);
         $email = $oa['email'] !== '' ? $oa['email'] : null;
         $dept  = $oa['department'] !== '' ? $oa['department'] : null;
-
-        $st = $pdo->prepare('SELECT * FROM users WHERE oa_user_id = ? LIMIT 1');
-        $st->execute([$oa['id']]);
-        $user = $st->fetch() ?: null;
-
-        if (!$user && $email !== null) {
-            $st = $pdo->prepare('SELECT * FROM users WHERE email = ? AND oa_user_id IS NULL LIMIT 1');
-            $st->execute([$email]);
-            $user = $st->fetch() ?: null;
-        }
+        $nationalId = $oa['national_id'] ?? '';
+        $user = self::matchOa($oa);
 
         if ($user) {
             $pdo->prepare(
-                'UPDATE users SET oa_user_id = ?, full_name = ?, email = COALESCE(?, email), department = COALESCE(?, department) WHERE id = ?'
+                'UPDATE users SET oa_user_id = ?, full_name = ?, email = COALESCE(?, email), department = COALESCE(?, department), is_active = COALESCE(?, is_active) WHERE id = ?'
             )->execute([
                 $oa['id'],
                 $fullName !== '' ? $fullName : $user['full_name'],
                 $email,
                 $dept,
+                $active === null ? null : (int) $active,
                 $user['id'],
             ]);
-            return self::findById((int) $user['id']);
+            return ['user' => self::findById((int) $user['id']), 'created' => false];
         }
 
-        // New account. username is NOT NULL UNIQUE and password_hash is NOT
-        // NULL; an SSO-only user never password-logs-in, so the hash is random
-        // and unusable.
+        // New account. username is NOT NULL UNIQUE: prefer the national ID
+        // (same key the RMS people-sync uses, so a later RMS sync updates this
+        // account instead of creating a twin), else a synthetic oa:{id}.
+        // password_hash is NOT NULL; an SSO-only user never password-logs-in,
+        // so the hash is random and unusable.
         $username = 'oa:' . $oa['id'];
+        if ($nationalId !== '' && self::findByUsername($nationalId) === null) {
+            $username = $nationalId;
+        }
         $unusableHash = password_hash(bin2hex(random_bytes(18)), PASSWORD_DEFAULT);
         $pdo->prepare(
-            'INSERT INTO users (username, password_hash, full_name, email, department, oa_user_id, icon) VALUES (?,?,?,?,?,?,?)'
+            'INSERT INTO users (username, password_hash, full_name, email, department, oa_user_id, icon, is_active) VALUES (?,?,?,?,?,?,?,?)'
         )->execute([
             $username,
             $unusableHash,
@@ -106,6 +123,7 @@ final class User
             $dept,
             $oa['id'],
             'person-workspace',
+            $active === false ? 0 : 1,
         ]);
         $userId = (int) $pdo->lastInsertId();
 
@@ -115,7 +133,36 @@ final class User
                 ->execute([$userId, $staffRoleId]);
         }
 
-        return self::findById($userId);
+        return ['user' => self::findById($userId), 'created' => true];
+    }
+
+    /**
+     * The local account an RVC-ONE user object maps to, if any — see the
+     * matching order on upsertFromOa().
+     *
+     * @param array{id:int,email:string,national_id?:string} $oa
+     */
+    public static function matchOa(array $oa): ?array
+    {
+        $pdo = Database::pdo();
+        $st = $pdo->prepare('SELECT * FROM users WHERE oa_user_id = ? LIMIT 1');
+        $st->execute([$oa['id']]);
+        $user = $st->fetch() ?: null;
+
+        $nationalId = $oa['national_id'] ?? '';
+        if (!$user && $nationalId !== '') {
+            $st = $pdo->prepare('SELECT * FROM users WHERE username = ? AND oa_user_id IS NULL LIMIT 1');
+            $st->execute([$nationalId]);
+            $user = $st->fetch() ?: null;
+        }
+
+        if (!$user && $oa['email'] !== '') {
+            $st = $pdo->prepare('SELECT * FROM users WHERE email = ? AND oa_user_id IS NULL LIMIT 1');
+            $st->execute([$oa['email']]);
+            $user = $st->fetch() ?: null;
+        }
+
+        return $user;
     }
 
     /**

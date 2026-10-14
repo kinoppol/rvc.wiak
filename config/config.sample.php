@@ -21,7 +21,11 @@ return [
     // Open Authenticator (SSO). Real defaults live in config/oa.php and are
     // used as-is — only add this block to override a key for a non-standard
     // deployment (e.g. a different callback host).
+    // The one value that is NOT in config/oa.php is the User-sync API's
+    // client_secret (a real secret) — put it here or in the OA_CLIENT_SECRET
+    // environment variable.
     // 'oa' => [
+    //     'client_secret' => '...',
     //     'redirect_uri' => 'https://wiak.rvc.ac.th/web/api/callback.php',
     // ],
     'upload' => [

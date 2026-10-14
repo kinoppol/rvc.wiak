@@ -36,7 +36,7 @@ use App\Core\View;
           <hr class="flex-grow-1 my-0"><span>หรือ</span><hr class="flex-grow-1 my-0">
         </div>
         <a href="<?= Url::to('/auth/oa/start') ?>" class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2">
-          <i class="bi bi-shield-lock"></i> <?= View::e(!empty($oaButtonLabel) ? $oaButtonLabel : 'ลงชื่อเข้าใช้ผ่านระบบ Open Authenticator') ?>
+          <i class="bi bi-shield-lock"></i> <?= View::e(!empty($oaButtonLabel) ? $oaButtonLabel : \App\Core\Oa::DEFAULT_BUTTON_LABEL) ?>
         </a>
       <?php endif; ?>
     </div>
