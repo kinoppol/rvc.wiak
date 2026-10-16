@@ -31,6 +31,14 @@ final class Oa
     /** @var array<string,mixed>|null file defaults + settings-table overrides, per request */
     private static ?array $merged = null;
 
+    /**
+     * Why the last verifyToken() returned null, so the callback can tell a
+     * misconfigured app apart from a bad/expired token: 'no_secret',
+     * 'no_curl', 'transport', 'bad_response', 'invalid_client',
+     * 'wrong_client', 'invalid_token'. Never holds token_id / token_key.
+     */
+    public static string $lastError = '';
+
     /** @param array<string,mixed> $cfg */
     public static function configure(array $cfg): void
     {
@@ -108,7 +116,17 @@ final class Oa
      */
     public static function verifyToken(string $tokenId, string $tokenKey): ?array
     {
-        if ($tokenId === '' || $tokenKey === '' || self::clientSecret() === '' || !function_exists('curl_init')) {
+        self::$lastError = '';
+        if ($tokenId === '' || $tokenKey === '') {
+            self::$lastError = 'invalid_token';
+            return null;
+        }
+        if (self::clientSecret() === '') {
+            self::$lastError = 'no_secret';
+            return null;
+        }
+        if (!function_exists('curl_init')) {
+            self::$lastError = 'no_curl';
             return null;
         }
 
@@ -136,15 +154,31 @@ final class Oa
         // Don't log token_id / token_key. A transport failure is just a failed
         // login — the caller turns null into a 401.
         if ($errno !== 0 || !is_string($body)) {
+            self::$lastError = 'transport';
             return null;
         }
 
         $data = json_decode($body, true);
-        if (!is_array($data) || ($data['valid'] ?? null) !== true || !is_array($data['user'] ?? null)) {
+        if (!is_array($data)) {
+            self::$lastError = 'bad_response';
+            return null;
+        }
+        if (($data['valid'] ?? null) !== true) {
+            $err = (string) ($data['error'] ?? '');
+            self::$lastError = $err === 'invalid_client' ? 'invalid_client'
+                : (str_contains($err, 'not issued to this client') ? 'wrong_client' : 'invalid_token');
+            return null;
+        }
+        if (!is_array($data['user'] ?? null)) {
+            self::$lastError = 'bad_response';
             return null;
         }
 
-        return self::normalizeUser($data['user']);
+        $user = self::normalizeUser($data['user']);
+        if ($user === null) {
+            self::$lastError = 'bad_response';
+        }
+        return $user;
     }
 
     /**

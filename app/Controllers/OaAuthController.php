@@ -87,12 +87,16 @@ final class OaAuthController extends Controller
 
         $oaUser = Oa::verifyToken(Request::str('token_id'), Request::str('token_key'));
         if ($oaUser === null) {
-            $this->message(
-                'เข้าสู่ระบบไม่สำเร็จ',
-                'ไม่สามารถยืนยันตัวตนกับระบบ RVC-ONE ได้ '
-                    . '(โทเคนไม่ถูกต้อง หมดอายุ หรือระบบยืนยันตัวตนไม่ตอบสนอง)',
-                401
-            );
+            $reason = [
+                'no_secret'      => 'แอปนี้ยังไม่ได้ตั้งค่า client_secret ของ RVC-ONE กรุณาติดต่อผู้ดูแลระบบ',
+                'invalid_client' => 'RVC-ONE ไม่ยอมรับ client_id / client_secret ของแอปนี้ (ค่าไม่ถูกต้อง หรือแอปถูกปิดใช้งาน) กรุณาติดต่อผู้ดูแลระบบ',
+                'wrong_client'   => 'โทเคนนี้ไม่ได้ออกให้แอปนี้ กรุณาเริ่มการเข้าสู่ระบบใหม่',
+                'invalid_token'  => 'โทเคนไม่ถูกต้องหรือหมดอายุ (มีอายุ 5 นาที) กรุณาเริ่มการเข้าสู่ระบบใหม่',
+                'transport'      => 'ติดต่อระบบยืนยันตัวตน RVC-ONE ไม่ได้ (ไม่ตอบสนองหรือหมดเวลา) กรุณาลองใหม่ภายหลัง',
+                'no_curl'        => 'เซิร์ฟเวอร์ไม่มีส่วนขยาย PHP curl กรุณาติดต่อผู้ดูแลระบบ',
+                'bad_response'   => 'ระบบ RVC-ONE ตอบกลับในรูปแบบที่ไม่ถูกต้อง กรุณาลองใหม่ภายหลัง',
+            ][Oa::$lastError] ?? 'ไม่สามารถยืนยันตัวตนกับระบบ RVC-ONE ได้';
+            $this->message('เข้าสู่ระบบไม่สำเร็จ', $reason, 401);
         }
 
         $user = User::provisionFromOa($oaUser);
