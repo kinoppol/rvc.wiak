@@ -22,6 +22,8 @@ use App\Core\View;
 /** @var string $oaUsersUrl */
 /** @var string $oaSyncType */
 /** @var bool $oaSecretSet */
+/** @var string $oaSecretSource */
+/** @var string $oaSecretSaved */
 /** @var string|null $oaSyncSince */
 /** @var string|null $oaSyncLastRunAt */
 /** @var array|null $oaSyncSummary */
@@ -115,6 +117,40 @@ use App\Core\View;
         <div><button type="submit" class="btn btn-sm btn-primary mt-2">บันทึกการตั้งค่า SSO</button></div>
       </form>
       <div class="form-text mt-2" style="font-size:.72rem">ค่าเริ่มต้นมาจากไฟล์ <code>config/oa.php</code> — ค่าที่บันทึกที่นี่จะถูกใช้แทน</div>
+
+      <hr class="my-3">
+      <div id="oa-secret" style="font-weight:600;font-size:.88rem;margin-bottom:4px"><i class="bi bi-key"></i> client_secret</div>
+      <div class="text-body-secondary mb-2" style="font-size:.76rem">ใช้ยืนยันตัวแอปกับ RVC-ONE ทั้งตอนตรวจโทเคนเข้าสู่ระบบ (SSO) และตอนซิงค์รายชื่อผู้ใช้ — ไม่มีค่านี้จะเข้าสู่ระบบผ่าน RVC-ONE ไม่ได้</div>
+      <?php if ($oaSecretSaved === 'set'): ?>
+        <div class="alert alert-success py-2" style="font-size:.85rem"><i class="bi bi-check-circle"></i> บันทึก client_secret แล้ว</div>
+      <?php elseif ($oaSecretSaved === 'cleared'): ?>
+        <div class="alert alert-success py-2" style="font-size:.85rem"><i class="bi bi-check-circle"></i> ลบ client_secret ที่บันทึกในระบบแล้ว</div>
+      <?php endif; ?>
+      <div class="mb-2" style="font-size:.8rem">
+        สถานะ:
+        <?php if ($oaSecretSource === 'settings'): ?>
+          <span class="badge text-bg-success">ตั้งค่าแล้ว (บันทึกจากหน้านี้)</span>
+        <?php elseif ($oaSecretSource === 'env'): ?>
+          <span class="badge text-bg-success">ตั้งค่าแล้ว (ตัวแปร OA_CLIENT_SECRET)</span>
+        <?php elseif ($oaSecretSource === 'config'): ?>
+          <span class="badge text-bg-success">ตั้งค่าแล้ว (config/config.php)</span>
+        <?php else: ?>
+          <span class="badge text-bg-danger">ยังไม่ได้ตั้งค่า</span>
+        <?php endif; ?>
+      </div>
+      <form method="post" action="<?= Url::to('/admin/settings/oa-secret') ?>" class="d-flex gap-2 align-items-center flex-wrap" autocomplete="off">
+        <?= Csrf::field() ?>
+        <input type="password" name="client_secret" class="form-control form-control-sm" style="max-width:320px;font-family:ui-monospace,monospace" placeholder="<?= $oaSecretSet ? 'กรอกเพื่อเปลี่ยนค่า' : 'วาง client_secret จาก RVC-ONE' ?>" autocomplete="new-password" maxlength="512" required>
+        <button type="submit" class="btn btn-sm btn-primary">บันทึก client_secret</button>
+      </form>
+      <?php if ($oaSecretSource === 'settings'): ?>
+        <form method="post" action="<?= Url::to('/admin/settings/oa-secret') ?>" class="mt-2" onsubmit="return confirm('ลบ client_secret ที่บันทึกไว้ในระบบ?')">
+          <?= Csrf::field() ?>
+          <input type="hidden" name="clear" value="1">
+          <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> ลบค่าที่บันทึกไว้</button>
+        </form>
+      <?php endif; ?>
+      <div class="form-text mt-2" style="font-size:.72rem">ระบบจะไม่แสดงค่าที่บันทึกไว้อีก — ลำดับการใช้: ค่าที่บันทึกที่หน้านี้ → ตัวแปร <code>OA_CLIENT_SECRET</code> → <code>config/config.php</code></div>
     </div>
   </div>
 
@@ -133,7 +169,7 @@ use App\Core\View;
         <div class="alert alert-danger py-2" style="font-size:.85rem"><i class="bi bi-exclamation-triangle"></i> ซิงค์ไม่สำเร็จ: <?= View::e($oaSyncError) ?></div>
       <?php endif; ?>
       <?php if (!$oaSecretSet): ?>
-        <div class="alert alert-warning py-2" style="font-size:.82rem"><i class="bi bi-key"></i> ยังไม่ได้ตั้งค่า <code>client_secret</code> — กำหนดตัวแปรสภาพแวดล้อม <code>OA_CLIENT_SECRET</code> หรือเพิ่ม <code>'oa' =&gt; ['client_secret' =&gt; '...']</code> ใน <code>config/config.php</code> บนเซิร์ฟเวอร์ (ห้าม commit ค่านี้)</div>
+        <div class="alert alert-warning py-2" style="font-size:.82rem"><i class="bi bi-key"></i> ยังไม่ได้ตั้งค่า <code>client_secret</code> — <a href="#oa-secret">กรอกที่ส่วนการเข้าสู่ระบบผ่าน RVC-ONE ด้านบน</a></div>
       <?php endif; ?>
 
       <div class="mb-3" style="font-size:.8rem;background:var(--bs-tertiary-bg);border-radius:9px;padding:10px 12px">

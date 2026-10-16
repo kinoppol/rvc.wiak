@@ -171,20 +171,45 @@ final class Oa
         ];
     }
 
+    /** settings-table key an admin sets the client_secret under (/admin/settings). */
+    public const SECRET_SETTING = 'oa_client_secret';
+
     /**
      * client_secret for server-to-server calls (verify_token and the User-sync
-     * API, both HTTP Basic client_id:client_secret). A real secret, so
-     * it never lives in a committed file: the OA_CLIENT_SECRET environment
-     * variable wins, else 'oa' => ['client_secret' => ...] in the git-ignored
-     * config/config.php.
+     * API, both HTTP Basic client_id:client_secret). A real secret, so it
+     * never lives in a committed file. First non-empty wins: the value an
+     * admin saved at /admin/settings (settings table), the OA_CLIENT_SECRET
+     * environment variable, 'oa' => ['client_secret' => ...] in the
+     * git-ignored config/config.php.
      */
     public static function clientSecret(): string
     {
+        return self::secretWithSource()[0];
+    }
+
+    /** Where the active client_secret comes from: 'settings' | 'env' | 'config' | '' (none). */
+    public static function clientSecretSource(): string
+    {
+        return self::secretWithSource()[1];
+    }
+
+    /** @return array{0:string,1:string} [secret, source] */
+    private static function secretWithSource(): array
+    {
+        try {
+            $db = \App\Models\Setting::get(self::SECRET_SETTING);
+            if (is_string($db) && $db !== '') {
+                return [$db, 'settings'];
+            }
+        } catch (\Throwable $e) {
+            // settings table not there yet — fall through to env/file
+        }
         $env = getenv('OA_CLIENT_SECRET');
         if (is_string($env) && $env !== '') {
-            return $env;
+            return [$env, 'env'];
         }
-        return (string) (self::$cfg['client_secret'] ?? '');
+        $file = (string) (self::$cfg['client_secret'] ?? '');
+        return [$file, $file !== '' ? 'config' : ''];
     }
 
     /** HTTP timeout (seconds) for server-to-server calls to the gateway. */

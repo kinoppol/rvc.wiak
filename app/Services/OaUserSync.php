@@ -24,7 +24,7 @@ use Throwable;
  *
  * Triggered from /admin/settings (incremental or full) and by cron through
  * cli/oa-user-sync.php. Endpoint/client_id/type come from config/oa.php; the
- * client_secret from OA_CLIENT_SECRET or config/config.php (see Oa::clientSecret).
+ * client_secret from /admin/settings, OA_CLIENT_SECRET or config/config.php (see Oa::clientSecret).
  * Never log the secret, and never log national IDs.
  */
 final class OaUserSync
@@ -56,7 +56,7 @@ final class OaUserSync
 
         try {
             if (Oa::clientSecret() === '') {
-                throw new RuntimeException('ยังไม่ได้ตั้งค่า client_secret ของ RVC-ONE (ตัวแปร OA_CLIENT_SECRET หรือ config/config.php)');
+                throw new RuntimeException('ยังไม่ได้ตั้งค่า client_secret ของ RVC-ONE (กรอกที่หน้าตั้งค่าระบบ)');
             }
 
             try {

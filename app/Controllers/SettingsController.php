@@ -61,6 +61,8 @@ final class SettingsController extends Controller
             'oaUsersUrl' => Oa::get('users_url'),
             'oaSyncType' => Oa::get('sync_type'),
             'oaSecretSet' => Oa::clientSecret() !== '',
+            'oaSecretSource' => Oa::clientSecretSource(),
+            'oaSecretSaved' => Request::str('oaSecretSaved'),
             'oaSyncSince' => Setting::get(OaUserSync::SINCE_KEY),
             'oaSyncLastRunAt' => Setting::get(OaUserSync::LAST_RUN_KEY),
             'oaSyncSummary' => is_array($oaSyncSummary) ? $oaSyncSummary : null,
@@ -148,6 +150,42 @@ final class SettingsController extends Controller
         );
 
         $this->redirect('/admin/settings?oaSaved=1');
+    }
+
+    /**
+     * Save or clear the RVC-ONE client_secret. Write-only: the page never
+     * echoes the stored value back, and it's never logged or audited.
+     */
+    public function updateOaSecret(): void
+    {
+        $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+
+        if (Request::str('clear') === '1') {
+            Setting::set(Oa::SECRET_SETTING, '');
+            $action = 'cleared';
+        } else {
+            $secret = trim((string) ($_POST['client_secret'] ?? ''));
+            if ($secret === '') {
+                $this->redirect('/admin/settings?oaError=' . rawurlencode('กรุณากรอก client_secret'));
+            }
+            if (strlen($secret) > 512) {
+                $this->redirect('/admin/settings?oaError=' . rawurlencode('client_secret ยาวเกินไป'));
+            }
+            Setting::set(Oa::SECRET_SETTING, $secret);
+            $action = 'set';
+        }
+
+        AuditLog::record(
+            (int) Auth::realUser()['id'],
+            null,
+            'settings.update_oa_secret',
+            'setting',
+            null,
+            $action
+        );
+
+        $this->redirect('/admin/settings?oaSecretSaved=' . $action . '#oa-secret');
     }
 
     public function updateNotify(): void
