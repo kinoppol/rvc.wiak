@@ -108,7 +108,7 @@ final class Oa
      */
     public static function verifyToken(string $tokenId, string $tokenKey): ?array
     {
-        if ($tokenId === '' || $tokenKey === '' || !function_exists('curl_init')) {
+        if ($tokenId === '' || $tokenKey === '' || self::clientSecret() === '' || !function_exists('curl_init')) {
             return null;
         }
 
@@ -121,6 +121,9 @@ final class Oa
                 'token_key' => $tokenKey,
             ]),
             CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
+            // The gateway authenticates the calling app with HTTP Basic
+            // client_id:client_secret (401 invalid_client without it).
+            CURLOPT_USERPWD        => self::get('client_id') . ':' . self::clientSecret(),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => max(2, min(5, $timeout)),
             CURLOPT_TIMEOUT        => max(3, $timeout),
@@ -169,7 +172,8 @@ final class Oa
     }
 
     /**
-     * client_secret for the server-to-server User-sync API. A real secret, so
+     * client_secret for server-to-server calls (verify_token and the User-sync
+     * API, both HTTP Basic client_id:client_secret). A real secret, so
      * it never lives in a committed file: the OA_CLIENT_SECRET environment
      * variable wins, else 'oa' => ['client_secret' => ...] in the git-ignored
      * config/config.php.

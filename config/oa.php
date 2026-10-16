@@ -2,10 +2,10 @@
 /**
  * RVC-ONE (Open Authenticator) connection settings — SSO login + User-sync API.
  *
- * These are NOT secrets — the SSO flow has no client_secret. The browser already
- * sees client_id and redirect_uri, and token verification is a server-to-server
- * call keyed only by the one-time token_key handed back through the callback.
- * So they live in this committed file (not the git-ignored config/config.php),
+ * These are NOT secrets — the browser already sees client_id and redirect_uri.
+ * The one secret, client_secret (HTTP Basic auth for both verify_token and the
+ * User-sync API), is never committed: see 'users_url' below.
+ * So these live in this committed file (not the git-ignored config/config.php),
  * which means every install has them without editing anything.
  *
  * To override a value for a non-standard deployment, add an 'oa' => [...] block
