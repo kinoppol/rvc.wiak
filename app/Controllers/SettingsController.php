@@ -57,7 +57,7 @@ final class SettingsController extends Controller
             'oaRedirectUri' => Oa::get('redirect_uri'),
             'oaSaved' => Request::str('oaSaved') === '1',
             'oaError' => Request::str('oaError'),
-            'oaStartUrl' => self::publicUrl('/auth/oa/start', Oa::get('redirect_uri')),
+            'oaStartUrl' => self::publicUrl('/api/login.php', Oa::get('redirect_uri')),
             'oaUsersUrl' => Oa::get('users_url'),
             'oaSyncType' => Oa::get('sync_type'),
             'oaSecretSet' => Oa::clientSecret() !== '',

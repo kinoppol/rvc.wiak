@@ -29,6 +29,9 @@ $router->post('/logout', [AuthController::class, 'logout']);
 // production is "/web", which Request::path() strips, so the route is
 // registered app-relative as /api/callback.php.
 $router->get('/auth/oa/start', [OaAuthController::class, 'start']);
+// The RVC-ONE app tile / SSO start URL is configured as .../web/api/login.php
+// (same api/*.php convention as the callback) — alias of /auth/oa/start.
+$router->get('/api/login.php', [OaAuthController::class, 'start']);
 $router->get('/api/callback.php', [OaAuthController::class, 'callback']);
 $router->post('/api/callback.php', [OaAuthController::class, 'callback']);
 
