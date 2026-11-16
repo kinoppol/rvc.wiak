@@ -36,6 +36,31 @@ $tid = (int) $t['id'];
 
     <div class="detail-body">
       <div class="d-flex flex-column gap-3">
+        <?php if (!empty($unseenChanges)): ?>
+        <div class="card shadow-sm" style="border-radius:12px;border:1px solid #f59e0b;background:rgba(245,158,11,.08)">
+          <div class="card-body">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-exclamation-triangle-fill" style="color:#d97706"></i>
+              <div style="font-weight:600;font-size:.88rem" class="flex-fill">ตั๋วงานนี้ถูกแก้ไขหลังจากคุณเปิดอ่าน</div>
+            </div>
+            <?php foreach ($unseenChanges as $c): ?>
+              <div class="text-body-secondary" style="font-size:.74rem;margin:8px 0 4px">
+                แก้ไขโดย <?= View::e($c['by_name']) ?> · <?= date('d/m/Y H:i', strtotime($c['changed_at'])) ?>
+              </div>
+              <div class="d-flex flex-column gap-2">
+                <?php foreach ($c['changes'] as $ch): ?>
+                  <div style="font-size:.8rem;border-left:3px solid #f59e0b;padding:4px 10px;background:var(--bs-body-bg);border-radius:0 8px 8px 0">
+                    <div style="font-weight:600"><?= View::e($ch['label']) ?></div>
+                    <div style="white-space:pre-wrap;word-break:break-word"><span class="text-body-secondary" style="text-decoration:line-through"><?= View::e($ch['old']) ?></span></div>
+                    <div style="white-space:pre-wrap;word-break:break-word;color:#047857"><i class="bi bi-arrow-return-right"></i> <?= View::e($ch['new']) ?></div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php endforeach; ?>
+            <button type="button" class="btn btn-sm btn-warning mt-3" data-post="/tickets/<?= $tid ?>/changes/acknowledge" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-check2"></i> รับทราบการเปลี่ยนแปลง</button>
+          </div>
+        </div>
+        <?php endif; ?>
         <div class="card border-0 shadow-sm" style="border-radius:12px">
           <div class="card-body">
             <div style="font-weight:600;font-size:.88rem;margin-bottom:8px">รายละเอียดงาน</div>
@@ -135,6 +160,12 @@ $tid = (int) $t['id'];
             <div class="d-flex flex-column gap-2">
               <?php if ($closed): ?>
                 <div class="text-body-secondary" style="font-size:.82rem">งานนี้ปิดแล้ว ไม่สามารถดำเนินการเพิ่มเติมได้</div>
+              <?php else: ?>
+                <?php if (!empty($canEdit)): ?>
+                  <button type="button" class="btn btn-sm btn-outline-primary" data-open-edit-ticket="<?= $tid ?>"><i class="bi bi-pencil-square"></i> แก้ไขตั๋วงาน</button>
+                <?php endif; ?>
+              <?php endif; ?>
+              <?php if ($closed): ?>
               <?php elseif ($isOwnerAssigner): ?>
                 <button type="button" class="btn btn-sm btn-primary" data-post="/tickets/<?= $tid ?>/approve" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-check2-circle"></i> อนุมัติผลงาน / ปิดตั๋ว</button>
                 <button type="button" class="btn btn-sm btn-outline-danger" data-post="/tickets/<?= $tid ?>/force-close" data-confirm="ยืนยันสั่งปิดงานทันที (Force Close)? คำถามที่ยังไม่ได้ตอบจะถูกปิดพร้อมกัน" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-lock"></i> สั่งปิดงานทันที (Force Close)</button>
@@ -162,7 +193,7 @@ $tid = (int) $t['id'];
                 <?php if (in_array($t['status'], ['ack', 'doing', 'review'], true)): ?>
                   <button type="button" class="btn btn-sm btn-outline-success" data-post="/tickets/<?= $tid ?>/submit" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-upload"></i> ส่งงาน / รายงานผลต่อผู้บริหาร</button>
                 <?php endif; ?>
-              <?php else: ?>
+              <?php elseif (empty($canEdit)): ?>
                 <div class="text-body-secondary" style="font-size:.82rem">คุณไม่มีสิทธิ์ดำเนินการในตั๋วงานนี้ ในบทบาทปัจจุบัน</div>
               <?php endif; ?>
             </div>

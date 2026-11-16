@@ -278,6 +278,66 @@ final class Ticket
         return true;
     }
 
+    /** Fields an assigner may edit after assigning, with their Thai labels. */
+    public const EDITABLE = [
+        'title' => 'หัวข้องาน',
+        'meta' => 'หน่วยงาน / หมายเหตุสั้น',
+        'priority' => 'ความสำคัญ',
+        'due_at' => 'กำหนดส่ง',
+        'description' => 'รายละเอียดงาน',
+    ];
+
+    /**
+     * Applies an edit and returns what changed, as display strings
+     * ({field, label, old, new}). Nothing is written when nothing changed.
+     *
+     * @param array{title:string,meta:?string,priority:string,due_at:?string,description:?string} $data
+     * @return list<array{field:string,label:string,old:string,new:string}>
+     */
+    public static function updateDetails(array $t, array $data): array
+    {
+        $changes = [];
+        foreach (self::EDITABLE as $field => $label) {
+            $old = $t[$field] ?? null;
+            $new = $data[$field] ?? null;
+            if ($field === 'due_at') {
+                // Compare to the minute — the form has no seconds.
+                $same = ($old === null && $new === null)
+                    || ($old !== null && $new !== null && date('Y-m-d H:i', strtotime($old)) === date('Y-m-d H:i', strtotime($new)));
+            } else {
+                $same = (string) $old === (string) $new;
+            }
+            if (!$same) {
+                $changes[] = [
+                    'field' => $field,
+                    'label' => $label,
+                    'old' => self::displayValue($field, $old),
+                    'new' => self::displayValue($field, $new),
+                ];
+            }
+        }
+        if (!$changes) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE tickets SET title = ?, meta = ?, priority = ?, due_at = ?, description = ? WHERE id = ?'
+        );
+        $st->execute([$data['title'], $data['meta'], $data['priority'], $data['due_at'], $data['description'], (int) $t['id']]);
+        return $changes;
+    }
+
+    private static function displayValue(string $field, ?string $v): string
+    {
+        if ($v === null || $v === '') {
+            return '—';
+        }
+        return match ($field) {
+            'priority' => self::PRIORITY[$v][0] ?? $v,
+            'due_at' => date('d/m/Y H:i', strtotime($v)),
+            default => $v,
+        };
+    }
+
     /** Human-readable elapsed time since creation (or since closed, if closed). */
     public static function elapsedLabel(array $t): string
     {

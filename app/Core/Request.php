@@ -51,4 +51,36 @@ final class Request
         }
         return $_FILES[$key];
     }
+
+    /**
+     * Normalises a multi-file field (`name="files[]" multiple`) from PHP's
+     * column-wise $_FILES shape into a list of per-file arrays, skipping
+     * empty slots (UPLOAD_ERR_NO_FILE).
+     *
+     * @return list<array{name:string,type:string,tmp_name:string,error:int,size:int}>
+     */
+    public static function files(string $key): array
+    {
+        $f = $_FILES[$key] ?? null;
+        if (!is_array($f) || !isset($f['name'])) {
+            return [];
+        }
+        if (!is_array($f['name'])) {
+            return $f['error'] === UPLOAD_ERR_NO_FILE ? [] : [$f];
+        }
+        $out = [];
+        foreach (array_keys($f['name']) as $i) {
+            if (($f['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+            $out[] = [
+                'name' => (string) $f['name'][$i],
+                'type' => (string) ($f['type'][$i] ?? ''),
+                'tmp_name' => (string) $f['tmp_name'][$i],
+                'error' => (int) $f['error'][$i],
+                'size' => (int) $f['size'][$i],
+            ];
+        }
+        return $out;
+    }
 }

@@ -130,6 +130,27 @@ CREATE TABLE IF NOT EXISTS ticket_timeline (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
+-- ticket_changes: edits made to an already-assigned ticket (JSON list of
+-- {field, label, old, new}). notify_user_id is the assignee when they had
+-- already opened the ticket, shown the changes until they acknowledge them.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ticket_changes (
+    id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ticket_id       INT UNSIGNED NOT NULL,
+    changed_by      INT UNSIGNED NOT NULL,
+    changed_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    changes         TEXT NOT NULL,
+    notify_user_id  INT UNSIGNED NULL,
+    seen_at         DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_changes_ticket (ticket_id),
+    KEY idx_changes_notify (notify_user_id, seen_at),
+    CONSTRAINT fk_changes_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_changes_by FOREIGN KEY (changed_by) REFERENCES users(id),
+    CONSTRAINT fk_changes_notify FOREIGN KEY (notify_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
 -- audit_log: every state-changing action, including impersonation.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -284,8 +305,10 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- hierarchy_level drives cross-level ("ข้ามขั้น") detection. The two
 -- branches of the org chart run in parallel, so หัวหน้างาน and
 -- หัวหน้าแผนก share a level, as do เจ้าหน้าที่ and ครู:
---   1 ผอ. → 2 รองผอ. → 3 หัวหน้างาน  → 4 เจ้าหน้าที่
---                    → 3 หัวหน้าแผนก → 4 ครู
+--   1 ผอ. → 2 รองผอ. → 3 หัวหน้างาน  → 4 ผู้ช่วยหัวหน้างาน / ครูช่วยงาน → 5 เจ้าหน้าที่
+--                    → 3 หัวหน้าแผนก →                                 5 ครู
+-- Level 4 is an optional tier (Role::OPTIONAL_LEVELS): skipping it is not
+-- counted as cross-level, so หัวหน้างาน → เจ้าหน้าที่ stays a normal step.
 -- Re-running this file re-syncs every descriptive column, so role
 -- metadata is upgraded in place on reinstall.
 -- ---------------------------------------------------------------------
@@ -295,8 +318,10 @@ INSERT INTO roles (code, label, short_label, icon, chip_bg, chip_fg, hierarchy_l
 ('deputy',     'รองผู้อำนวยการ (Deputy)',        'รองผอ.',       'person-vcard-fill', 'rgba(14,165,233,.2)',  '#7dd3fc', 2,    1),
 ('dept',       'หัวหน้าแผนก (Dept. Head)',       'หัวหน้าแผนก',  'buildings-fill',    'rgba(168,85,247,.2)',  '#d8b4fe', 3,    1),
 ('supervisor', 'หัวหน้างาน (Supervisor)',        'หัวหน้างาน',   'person-gear',       'rgba(16,185,129,.2)',  '#6ee7b7', 3,    0),
-('staff',      'เจ้าหน้าที่ในงาน (Staff)',       'เจ้าหน้าที่',  'person-workspace',  'rgba(148,163,184,.22)','#cbd5e1', 4,    0),
-('teacher',    'ครู (Teacher)',                  'ครู',          'mortarboard-fill',  'rgba(234,179,8,.2)',   '#fde047', 4,    0)
+('asst_supervisor', 'ผู้ช่วยหัวหน้างาน (Asst. Supervisor)', 'ผู้ช่วยหัวหน้างาน', 'person-badge', 'rgba(20,184,166,.2)', '#5eead4', 4, 0),
+('work_teacher', 'ครูช่วยงาน (Assisting Teacher)', 'ครูช่วยงาน',   'person-video3',     'rgba(249,115,22,.2)',  '#fdba74', 4,    0),
+('staff',      'เจ้าหน้าที่ในงาน (Staff)',       'เจ้าหน้าที่',  'person-workspace',  'rgba(148,163,184,.22)','#cbd5e1', 5,    0),
+('teacher',    'ครู (Teacher)',                  'ครู',          'mortarboard-fill',  'rgba(234,179,8,.2)',   '#fde047', 5,    0)
 ON DUPLICATE KEY UPDATE
     label = VALUES(label), short_label = VALUES(short_label), icon = VALUES(icon),
     chip_bg = VALUES(chip_bg), chip_fg = VALUES(chip_fg),

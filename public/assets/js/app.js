@@ -126,6 +126,10 @@
     if (newBtn) {
       fetchHtml("/tickets/new").then(function (res) { openOverlay(res.text); });
     }
+    var editTicket = e.target.closest("[data-open-edit-ticket]");
+    if (editTicket) {
+      fetchHtml("/tickets/" + editTicket.getAttribute("data-open-edit-ticket") + "/edit").then(function (res) { openOverlay(res.text); });
+    }
     var editRoles = e.target.closest("[data-open-user-roles]");
     if (editRoles) {
       fetchHtml("/admin/users/" + editRoles.getAttribute("data-open-user-roles") + "/roles").then(function (res) { openOverlay(res.text); });
@@ -160,6 +164,7 @@
     postJson(form.getAttribute("action"), fd).then(function (res) {
       if (submitBtn) submitBtn.disabled = false;
       if (!res.body.ok) { alert(res.body.error || "เกิดข้อผิดพลาด"); return; }
+      if (res.body.warning) alert(res.body.warning);
       var ticketId = form.getAttribute("data-refresh-ticket");
       if (ticketId) { openTicket(ticketId); } else { closeOverlay(); }
       refreshBoard();
@@ -215,12 +220,70 @@
     hint.textContent = f ? "เลือกไฟล์แล้ว: " + f.name + " (" + Math.max(1, Math.round(f.size / 1024)) + " KB)" : "";
   }
 
+  // ---------- multi-file input ([data-multi-file]) ----------
+  // A native <input multiple> replaces its selection on every pick, so keep
+  // the accumulated files in our own list and write them back to
+  // input.files — that way users can pick, pick again, paste, and remove
+  // individual files before submitting.
+  var multiFiles = new WeakMap();
+
+  function renderMultiFiles(input) {
+    var list = input.closest("div").querySelector("[data-file-list]");
+    var files = multiFiles.get(input) || [];
+    var dt = new DataTransfer();
+    files.forEach(function (f) { dt.items.add(f); });
+    input.files = dt.files;
+    if (!list) return;
+    list.innerHTML = "";
+    files.forEach(function (f, i) {
+      var row = document.createElement("div");
+      row.className = "d-flex align-items-center gap-2";
+      var icon = document.createElement("i");
+      icon.className = "bi bi-paperclip text-body-secondary";
+      var name = document.createElement("span");
+      name.className = "flex-fill text-truncate";
+      name.textContent = f.name + " (" + Math.max(1, Math.round(f.size / 1024)) + " KB)";
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "btn btn-sm btn-link text-danger p-0";
+      rm.title = "นำไฟล์ออก";
+      rm.innerHTML = '<i class="bi bi-x-circle"></i>';
+      rm.addEventListener("click", function () {
+        files.splice(i, 1);
+        renderMultiFiles(input);
+      });
+      row.appendChild(icon); row.appendChild(name); row.appendChild(rm);
+      list.appendChild(row);
+    });
+  }
+
+  function addMultiFiles(input, incoming) {
+    var files = multiFiles.get(input) || [];
+    var maxFiles = parseInt(input.getAttribute("data-max-files") || "20", 10);
+    var maxBytes = parseInt(input.getAttribute("data-max-bytes") || "0", 10);
+    var rejected = [];
+    Array.prototype.forEach.call(incoming, function (f) {
+      if (maxBytes && f.size > maxBytes) { rejected.push(f.name + " (ขนาดเกินที่กำหนด)"); return; }
+      if (files.length >= maxFiles) { rejected.push(f.name + " (แนบได้สูงสุด " + maxFiles + " ไฟล์)"); return; }
+      files.push(f);
+    });
+    multiFiles.set(input, files);
+    renderMultiFiles(input);
+    if (rejected.length) alert("ไม่สามารถแนบไฟล์ต่อไปนี้:\n" + rejected.join("\n"));
+  }
+
   document.addEventListener("paste", function (e) {
     var input = document.querySelector("[data-paste-file]");
     if (!input) return;
     var files = e.clipboardData && e.clipboardData.files;
     if (!files || !files.length) return; // plain-text paste — leave it alone
     e.preventDefault();
+    if (input.hasAttribute("data-multi-file")) {
+      addMultiFiles(input, Array.prototype.map.call(files, function (src) {
+        return new File([src], clipboardFileName(src), { type: src.type });
+      }));
+      return;
+    }
     var src = files[0];
     var dt = new DataTransfer();
     dt.items.add(new File([src], clipboardFileName(src), { type: src.type }));
@@ -229,7 +292,73 @@
   });
 
   document.addEventListener("change", function (e) {
+    if (e.target.matches("[data-multi-file]")) {
+      // Copy before renderMultiFiles() overwrites input.files.
+      addMultiFiles(e.target, Array.prototype.slice.call(e.target.files));
+      return;
+    }
     if (e.target.matches("[data-paste-file]")) showPasteHint(e.target);
+  });
+
+  // ---------- type-to-filter a <select> ([data-filter-select="#id"]) ----------
+  // While a query is typed, non-matching options are hidden and the select
+  // opens up as a short list box so matches can be clicked directly.
+  document.addEventListener("input", function (e) {
+    var box = e.target.closest("[data-filter-select]");
+    if (!box) return;
+    var sel = document.querySelector(box.getAttribute("data-filter-select"));
+    if (!sel) return;
+    var q = box.value.trim().toLowerCase();
+    var shown = 0;
+    Array.prototype.forEach.call(sel.options, function (opt) {
+      var match = opt.value !== "" && (q === "" || opt.text.toLowerCase().indexOf(q) !== -1);
+      opt.hidden = q !== "" && !match;
+      if (match && q !== "") shown++;
+    });
+    if (q === "") { sel.size = 0; return; }
+    sel.size = Math.max(2, Math.min(shown + 1, 8));
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = "";
+  });
+  document.addEventListener("keydown", function (e) {
+    var box = e.target.closest && e.target.closest("[data-filter-select]");
+    if (!box) return;
+    var sel = document.querySelector(box.getAttribute("data-filter-select"));
+    if (!sel) return;
+    if (e.key === "Enter") {
+      // Pick the first visible match instead of submitting the form.
+      e.preventDefault();
+      var first = Array.prototype.find.call(sel.options, function (o) { return o.value !== "" && !o.hidden; });
+      if (first) { sel.value = first.value; box.value = first.text; collapseFilterSelect(box, sel); }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      sel.focus();
+    }
+  });
+  function collapseFilterSelect(box, sel) {
+    Array.prototype.forEach.call(sel.options, function (o) { o.hidden = false; });
+    sel.size = 0;
+  }
+  function filterBoxFor(sel) {
+    return sel && sel.tagName === "SELECT" && sel.id
+      ? document.querySelector('[data-filter-select="#' + sel.id + '"]') : null;
+  }
+  // Arrow keys in the open list box fire "change" on every step, so only
+  // mirror the choice there; collapse once it's confirmed by click or Enter.
+  document.addEventListener("change", function (e) {
+    var box = filterBoxFor(e.target);
+    if (box && e.target.value) box.value = e.target.selectedOptions[0].text;
+  });
+  document.addEventListener("click", function (e) {
+    var sel = e.target.closest("select");
+    var box = filterBoxFor(sel);
+    if (box && sel.size > 1 && sel.value) collapseFilterSelect(box, sel);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    var box = filterBoxFor(e.target);
+    if (!box || e.target.size <= 1) return;
+    e.preventDefault();
+    if (e.target.value) collapseFilterSelect(box, e.target);
   });
 
   // Impersonate pick.

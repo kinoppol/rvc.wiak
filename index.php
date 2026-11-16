@@ -56,6 +56,9 @@ $router->post('/preferences', [ProfileController::class, 'updatePreferences']);
 $router->get('/tickets/new', [TicketController::class, 'newForm']);
 $router->post('/tickets', [TicketController::class, 'store']);
 $router->get('/tickets/{id}', [TicketController::class, 'show']);
+$router->get('/tickets/{id}/edit', [TicketController::class, 'editForm']);
+$router->post('/tickets/{id}/update', [TicketController::class, 'update']);
+$router->post('/tickets/{id}/changes/acknowledge', [TicketController::class, 'acknowledgeChanges']);
 $router->post('/tickets/{id}/acknowledge', [TicketController::class, 'acknowledge']);
 $router->post('/tickets/{id}/start', [TicketController::class, 'start']);
 $router->post('/tickets/{id}/request-review', [TicketController::class, 'requestReview']);
@@ -90,6 +93,8 @@ $router->post('/admin/settings/oa-secret', [SettingsController::class, 'updateOa
 
 // {type} is one of OrgUnit::TYPES — validated in the controller before use.
 $router->get('/admin/org', [OrgController::class, 'index']);
+$router->post('/admin/org-sync/preview', [OrgController::class, 'rmsPreview']);
+$router->post('/admin/org-sync/apply', [OrgController::class, 'rmsApply']);
 $router->post('/admin/org/{type}', [OrgController::class, 'store']);
 $router->post('/admin/org/{type}/{id}', [OrgController::class, 'update']);
 $router->post('/admin/org/{type}/{id}/delete', [OrgController::class, 'delete']);

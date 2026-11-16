@@ -14,13 +14,27 @@ final class Role
     public const ROLE_UNIT_TYPE = [
         'deputy' => 'division',
         'supervisor' => 'work',
+        'asst_supervisor' => 'work',
+        'work_teacher' => 'work',
         'dept' => 'department',
         'staff' => 'work',
         'teacher' => 'department',
     ];
 
-    /** Roles that take exactly one unit rather than one-or-more. */
-    public const SINGLE_UNIT_ROLES = ['deputy'];
+    /**
+     * Hierarchy levels that are an optional tier: an assignment that skips
+     * only these is not cross-level. Level 4 holds ผู้ช่วยหัวหน้างาน and
+     * ครูช่วยงาน, which not every งาน has, so หัวหน้างาน (3) → เจ้าหน้าที่ (5)
+     * is still a normal step.
+     */
+    public const OPTIONAL_LEVELS = [4];
+
+    /**
+     * Roles that take exactly one unit rather than one-or-more. Empty since
+     * the real RMS org chart has one รองผอ. overseeing two ฝ่าย — deputy
+     * used to be limited to one.
+     */
+    public const SINGLE_UNIT_ROLES = [];
 
     public static function unitType(string $code): ?string
     {
@@ -66,7 +80,8 @@ final class Role
     /**
      * Cross-level assignment: from and to roles are both in the chain of
      * command and the assignment skips at least one level (e.g. director
-     * straight to staff instead of via deputy/dept -> supervisor).
+     * straight to staff instead of via deputy/dept -> supervisor). Skipping
+     * only an OPTIONAL_LEVELS tier doesn't count.
      */
     public static function isCrossLevel(string $fromCode, string $toCode): bool
     {
@@ -75,6 +90,14 @@ final class Role
         if ($a === null || $b === null) {
             return $fromCode !== $toCode && ($fromCode === 'admin' || $toCode === 'admin') === false;
         }
-        return ($b - $a) > 1 || ($b - $a) < 0;
+        if ($b < $a) {
+            return true; // upward
+        }
+        for ($lvl = $a + 1; $lvl < $b; $lvl++) {
+            if (!in_array($lvl, self::OPTIONAL_LEVELS, true)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

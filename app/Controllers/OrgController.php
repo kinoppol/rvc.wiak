@@ -10,6 +10,7 @@ use App\Core\Request;
 use App\Models\AuditLog;
 use App\Models\OrgUnit;
 use App\Models\User;
+use App\Services\OrgChartSync;
 
 final class OrgController extends Controller
 {
@@ -113,5 +114,38 @@ final class OrgController extends Controller
 
         AuditLog::record((int) Auth::realUser()['id'], null, 'org.delete', $type, $id, (string) $unit['name']);
         $this->redirect('/admin/org?notice=' . rawurlencode('ลบ "' . $unit['name'] . '" แล้ว'));
+    }
+
+    /** Fetches the RMS org chart and shows what syncing would change — writes nothing. */
+    public function rmsPreview(): void
+    {
+        $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+        try {
+            $plan = OrgChartSync::plan();
+        } catch (\Throwable $e) {
+            $this->redirect('/admin/org?error=' . rawurlencode('ซิงก์ผังองค์กรไม่สำเร็จ: ' . $e->getMessage()));
+        }
+        $this->page('admin/org_sync_preview', [
+            'pageTitle' => 'ตรวจสอบก่อนซิงก์ผังองค์กรจาก RMS',
+            'plan' => $plan,
+            'sourceUrl' => OrgChartSync::pageUrl(),
+        ]);
+    }
+
+    public function rmsApply(): void
+    {
+        $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+        try {
+            $sum = OrgChartSync::apply();
+        } catch (\Throwable $e) {
+            $this->redirect('/admin/org?error=' . rawurlencode('ซิงก์ผังองค์กรไม่สำเร็จ: ' . $e->getMessage()));
+        }
+        AuditLog::record((int) Auth::realUser()['id'], null, 'org.rms_sync', 'org', null, json_encode($sum, JSON_UNESCAPED_UNICODE));
+        $this->redirect('/admin/org?notice=' . rawurlencode(sprintf(
+            'ซิงก์ผังองค์กรจาก RMS แล้ว: สร้างหน่วยงานใหม่ %d · เปลี่ยนชื่อฝ่าย %d · ย้ายงาน %d · ปรับบทบาท %d คน (%d รายการ) · จับคู่บัญชีไม่ได้ %d คน',
+            $sum['units_created'], $sum['units_renamed'], $sum['units_moved'], $sum['people_updated'], $sum['links_added'], $sum['unmatched']
+        )));
     }
 }

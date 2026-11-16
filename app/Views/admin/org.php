@@ -47,13 +47,30 @@ $row = function (string $type, array $u, array $divisions): void {
   <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle"></i> <?= View::e($error) ?></div>
 <?php endif; ?>
 
+<div class="card border-0 shadow-sm mb-3" style="border-radius:14px">
+  <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+    <i class="bi bi-diagram-3" style="font-size:1.4rem;color:#1e3a8a"></i>
+    <div class="flex-fill" style="min-width:240px">
+      <div style="font-weight:600;font-size:.95rem">ซิงก์ผังองค์กรจาก RMS</div>
+      <div class="text-body-secondary" style="font-size:.76rem">
+        อ่านแผนผังบุคลากร (pms_graph.php) แล้วสร้าง ฝ่าย / งาน / แผนก และกำหนดบทบาทบุคลากรตามผัง
+        — จะแสดงรายการเปลี่ยนแปลงให้ตรวจสอบก่อน ยังไม่บันทึกจนกว่าจะกดยืนยัน
+      </div>
+    </div>
+    <form method="post" action="<?= Url::to('/admin/org-sync/preview') ?>">
+      <?= Csrf::field() ?>
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> ดึงผังและตรวจสอบ</button>
+    </form>
+  </div>
+</div>
+
 <div class="row g-3">
   <!-- ฝ่าย -->
   <div class="col-12 col-xl-4">
     <div class="card border-0 shadow-sm h-100" style="border-radius:14px">
       <div class="card-body">
         <div style="font-weight:600;font-size:.95rem;margin-bottom:2px"><i class="bi bi-diagram-2"></i> ฝ่าย (<?= count($divisions) ?>)</div>
-        <div class="text-body-secondary mb-3" style="font-size:.76rem">รองผู้อำนวยการสังกัด 1 ฝ่าย</div>
+        <div class="text-body-secondary mb-3" style="font-size:.76rem">รองผู้อำนวยการสังกัดได้ 1 ฝ่ายขึ้นไป</div>
 
         <form method="post" action="<?= Url::to('/admin/org/division') ?>" class="d-flex gap-2 mb-3">
           <?= Csrf::field() ?>
@@ -74,7 +91,7 @@ $row = function (string $type, array $u, array $divisions): void {
     <div class="card border-0 shadow-sm h-100" style="border-radius:14px">
       <div class="card-body">
         <div style="font-weight:600;font-size:.95rem;margin-bottom:2px"><i class="bi bi-briefcase"></i> งาน (<?= count($works) ?>)</div>
-        <div class="text-body-secondary mb-3" style="font-size:.76rem">หัวหน้างานและเจ้าหน้าที่สังกัดได้หลายงาน</div>
+        <div class="text-body-secondary mb-3" style="font-size:.76rem">หัวหน้างาน ผู้ช่วยหัวหน้างาน ครูช่วยงาน และเจ้าหน้าที่สังกัดได้หลายงาน</div>
 
         <form method="post" action="<?= Url::to('/admin/org/work') ?>" class="d-flex flex-column gap-2 mb-3">
           <?= Csrf::field() ?>

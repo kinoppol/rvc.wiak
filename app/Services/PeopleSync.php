@@ -66,17 +66,18 @@ final class PeopleSync
                 $result['errors'][] = "แถวที่ {$i}: ไม่มี people_id — ข้าม";
                 continue;
             }
-            if ($password === '') {
-                $result['skipped']++;
-                $result['errors'][] = "รหัส {$username}: ไม่มี ath_pass — ข้าม";
-                continue;
-            }
 
             $fullName = trim($name . ' ' . $surname);
             if ($fullName === '') {
                 $fullName = $username;
             }
-            $hash = password_hash($password, PASSWORD_DEFAULT);
+            // Login goes through RVC-ONE SSO now, so a person with no ath_pass
+            // is still imported. Such an account gets an unusable random
+            // password (never a blank one), and an existing account keeps the
+            // password it already has rather than being overwritten.
+            $hash = $password !== ''
+                ? password_hash($password, PASSWORD_DEFAULT)
+                : null;
 
             $existing = $pdo->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
             $existing->execute([$username]);
@@ -84,12 +85,17 @@ final class PeopleSync
 
             if ($existingId !== false) {
                 $userId = (int) $existingId;
-                $upd = $pdo->prepare('UPDATE users SET password_hash = ?, full_name = ?, email = ? WHERE id = ?');
-                $upd->execute([$hash, $fullName, $email ?: null, $userId]);
+                if ($hash !== null) {
+                    $upd = $pdo->prepare('UPDATE users SET password_hash = ?, full_name = ?, email = ? WHERE id = ?');
+                    $upd->execute([$hash, $fullName, $email ?: null, $userId]);
+                } else {
+                    $upd = $pdo->prepare('UPDATE users SET full_name = ?, email = ? WHERE id = ?');
+                    $upd->execute([$fullName, $email ?: null, $userId]);
+                }
                 $result['updated']++;
             } else {
                 $ins = $pdo->prepare('INSERT INTO users (username, password_hash, full_name, email, icon) VALUES (?,?,?,?,?)');
-                $ins->execute([$username, $hash, $fullName, $email ?: null, 'person-workspace']);
+                $ins->execute([$username, $hash ?? password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT), $fullName, $email ?: null, 'person-workspace']);
                 $userId = (int) $pdo->lastInsertId();
                 if ($staffRoleId !== null) {
                     $pdo->prepare('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)')->execute([$userId, $staffRoleId]);
