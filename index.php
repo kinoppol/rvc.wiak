@@ -84,6 +84,7 @@ $router->get('/admin/settings', [SettingsController::class, 'index']);
 $router->post('/admin/settings/url', [SettingsController::class, 'updateUrl']);
 $router->post('/admin/settings/sync', [SettingsController::class, 'sync']);
 $router->post('/admin/settings/notify', [SettingsController::class, 'updateNotify']);
+$router->post('/admin/settings/general', [SettingsController::class, 'updateGeneral']);
 $router->post('/admin/settings/oauth', [SettingsController::class, 'updateOauth']);
 $router->post('/admin/settings/oa-sync', [SettingsController::class, 'oaSync']);
 $router->post('/admin/settings/oa-secret', [SettingsController::class, 'updateOaSecret']);

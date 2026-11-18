@@ -118,7 +118,7 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         <button type="button" class="btn btn-sm btn-outline-secondary sidebar-toggle" data-sidebar-open><i class="bi bi-list"></i></button>
         <div class="min-w-0">
           <div style="font-size:1.02rem;font-weight:600"><?= View::e($pageTitle ?? '') ?></div>
-          <div class="text-body-secondary" style="font-size:.76rem">วิทยาลัยเทคนิค · ปีการศึกษา <?= (int) date('Y') + 543 ?> · ภาคเรียนที่ 1</div>
+          <div class="text-body-secondary" style="font-size:.76rem"><?php $acad = Setting::academicTerm(); ?><?= View::e(Setting::schoolName()) ?> · ปีการศึกษา <?= $acad['year'] ?> · ภาคเรียนที่ <?= $acad['term'] === 3 ? '3 (ฤดูร้อน)' : $acad['term'] ?></div>
         </div>
         <div class="flex-fill"></div>
         <div class="dropdown">

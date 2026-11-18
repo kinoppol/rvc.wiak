@@ -29,39 +29,103 @@ use App\Core\View;
 /** @var array|null $oaSyncSummary */
 /** @var bool $oaSynced */
 /** @var string $oaSyncError */
+/** @var string $schoolName */
+/** @var string $schoolNameDefault */
+/** @var string $academicYear */
+/** @var string $academicTermSetting */
+/** @var array $academic */
+/** @var bool $generalSaved */
+/** @var string $generalError */
 ?>
-<div class="d-flex flex-column gap-3" style="max-width:760px">
+<div style="max-width:760px">
+<ul class="nav nav-pills settings-tabs mb-3" role="tablist" data-tab-hash>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="tab-btn-general" data-bs-toggle="tab" data-bs-target="#tab-general" data-hash="general" type="button" role="tab" aria-controls="tab-general" aria-selected="true"><i class="bi bi-sliders"></i> ทั่วไป</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab-btn-rvc-one" data-bs-toggle="tab" data-bs-target="#tab-rvc-one" data-hash="rvc-one" type="button" role="tab" aria-controls="tab-rvc-one" aria-selected="false"><i class="bi bi-shield-lock"></i> RVC-ONE (SSO / ซิงค์ผู้ใช้)<?php if (!$oaSecretSet): ?> <span class="badge rounded-pill text-bg-danger" style="font-size:.6rem">!</span><?php endif; ?></button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab-btn-rms" data-bs-toggle="tab" data-bs-target="#tab-rms" data-hash="rms" type="button" role="tab" aria-controls="tab-rms" aria-selected="false"><i class="bi bi-hdd-network"></i> ระบบ RMS</button>
+  </li>
+</ul>
 
-  <?php if ($urlUpdated): ?>
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> บันทึก URL ของระบบภายนอกแล้ว</div>
-  <?php endif; ?>
-  <?php if (Request::str('urlError') === '1'): ?>
-    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle"></i> URL ไม่ถูกต้อง กรุณาระบุในรูปแบบ http:// หรือ https://</div>
-  <?php endif; ?>
-  <?php if ($synced): ?>
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> ซิงค์ข้อมูลผู้ใช้เรียบร้อยแล้ว</div>
-  <?php endif; ?>
-  <?php if ($syncError): ?>
-    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle"></i> ซิงค์ข้อมูลไม่สำเร็จ: <?= View::e($syncError) ?></div>
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="tab-general" role="tabpanel" aria-labelledby="tab-btn-general" tabindex="0">
+    <div class="d-flex flex-column gap-3">
+  <div class="card border-0 shadow-sm" style="border-radius:14px">
+    <div class="card-body">
+      <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-building"></i> ข้อมูลสถานศึกษาและภาคเรียน</div>
+      <div class="text-body-secondary mb-3" style="font-size:.78rem">แสดงที่แถบด้านบนของทุกหน้า และใช้เป็นปีการศึกษาในสรุปบนแดชบอร์ด</div>
+
+      <?php if ($generalSaved): ?>
+        <div class="alert alert-success py-2" style="font-size:.85rem"><i class="bi bi-check-circle"></i> บันทึกข้อมูลสถานศึกษาแล้ว</div>
+      <?php endif; ?>
+      <?php if ($generalError): ?>
+        <div class="alert alert-danger py-2" style="font-size:.85rem"><i class="bi bi-exclamation-triangle"></i> <?= View::e($generalError) ?></div>
+      <?php endif; ?>
+
+      <form method="post" action="<?= Url::to('/admin/settings/general') ?>" class="d-flex flex-column gap-2">
+        <?= Csrf::field() ?>
+        <label class="form-label" style="font-size:.82rem">ชื่อสถานศึกษา</label>
+        <input type="text" name="school_name" maxlength="150" class="form-control form-control-sm" style="max-width:420px" value="<?= View::e($schoolName) ?>" placeholder="<?= View::e($schoolNameDefault) ?>">
+
+        <div class="d-flex gap-3 flex-wrap mt-1">
+          <div>
+            <label class="form-label" style="font-size:.82rem">ปีการศึกษา (พ.ศ.)</label>
+            <input type="number" name="academic_year" min="2500" max="2700" class="form-control form-control-sm" style="max-width:150px" value="<?= View::e($academicYear) ?>" placeholder="อัตโนมัติ">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:.82rem">ภาคเรียน</label>
+            <select name="academic_term" class="form-select form-select-sm" style="max-width:190px">
+              <option value="" <?= $academicTermSetting === '' ? 'selected' : '' ?>>อัตโนมัติ</option>
+              <option value="1" <?= $academicTermSetting === '1' ? 'selected' : '' ?>>ภาคเรียนที่ 1</option>
+              <option value="2" <?= $academicTermSetting === '2' ? 'selected' : '' ?>>ภาคเรียนที่ 2</option>
+              <option value="3" <?= $academicTermSetting === '3' ? 'selected' : '' ?>>ภาคเรียนที่ 3 (ฤดูร้อน)</option>
+            </select>
+          </div>
+        </div>
+        <div><button type="submit" class="btn btn-sm btn-primary mt-2">บันทึก</button></div>
+      </form>
+      <div class="form-text mt-2" style="font-size:.72rem">
+        ตอนนี้แสดงเป็น: <strong><?= View::e($schoolName !== '' ? $schoolName : $schoolNameDefault) ?> · ปีการศึกษา <?= $academic['year'] ?> · ภาคเรียนที่ <?= $academic['term'] === 3 ? '3 (ฤดูร้อน)' : $academic['term'] ?></strong>
+        <?php if ($academic['auto_year'] || $academic['auto_term']): ?>(ช่องที่เว้นว่างคำนวณอัตโนมัติ: ภาคเรียนที่ 1 = พ.ค.–ต.ค., ภาคเรียนที่ 2 = พ.ย.–เม.ย.)<?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <?php if ($notifySaved): ?>
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> บันทึกค่าเริ่มต้นการแจ้งเตือนแล้ว</div>
   <?php endif; ?>
 
   <div class="card border-0 shadow-sm" style="border-radius:14px">
     <div class="card-body">
-      <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-hdd-network"></i> การเชื่อมต่อระบบภายนอก (RMS)</div>
-      <div class="text-body-secondary mb-3" style="font-size:.78rem">ที่อยู่เซิร์ฟเวอร์ต้นทางสำหรับโอนข้อมูลผู้ใช้ (เฉพาะโปรโตคอล+โดเมน) — เส้นทาง API และพารามิเตอร์ถูกกำหนดไว้ในโค้ดของระบบแล้ว ไม่ต้องระบุซ้ำที่นี่</div>
-
-      <form method="post" action="<?= Url::to('/admin/settings/url') ?>" class="d-flex flex-column gap-2">
+      <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-bell"></i> ค่าเริ่มต้นการแจ้งเตือนงานใกล้ถึงกำหนด</div>
+      <div class="text-body-secondary mb-3" style="font-size:.78rem">
+        ค่าเริ่มต้นสำหรับผู้ใช้ทุกคน — ผู้ใช้แต่ละคนสามารถกำหนดจำนวนวันแจ้งเตือนล่วงหน้าของตนเองทับค่านี้ได้ที่เมนู "การแจ้งเตือนของฉัน"
+      </div>
+      <form method="post" action="<?= Url::to('/admin/settings/notify') ?>" class="d-flex gap-3 flex-wrap align-items-end">
         <?= Csrf::field() ?>
-        <label class="form-label" style="font-size:.82rem">Base URL</label>
-        <div class="d-flex gap-2 flex-wrap">
-          <input type="text" name="base_url" class="form-control form-control-sm" style="max-width:360px" value="<?= View::e($baseUrl) ?>" placeholder="http://rms.rvc.ac.th" required>
-          <button type="submit" class="btn btn-sm btn-primary">บันทึก</button>
+        <div>
+          <label class="form-label" style="font-size:.82rem">เตือนล่วงหน้า (วัน)</label>
+          <input type="number" name="warn_days_default" min="1" max="60" class="form-control form-control-sm" style="max-width:120px" value="<?= (int) $warnDaysDefault ?>" required>
         </div>
-        <div class="text-body-secondary" style="font-size:.72rem;font-family:ui-monospace,monospace">endpoint: <?= View::e($baseUrl) ?>/api_connection.php?app_name=nutty&amp;data=people</div>
+        <div>
+          <label class="form-label" style="font-size:.82rem">แจ้งเตือนระดับด่วนที่สุด (ชั่วโมง)</label>
+          <input type="number" name="urgent_hours" min="1" max="720" class="form-control form-control-sm" style="max-width:140px" value="<?= (int) $urgentHours ?>" required>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">บันทึก</button>
       </form>
+      <div class="form-text mt-2">
+        งานที่ถูกมอบหมายมาแบบกระชั้นชิดตั้งแต่ต้น (ระยะเวลาจากวันที่มอบหมายถึงกำหนดส่งสั้นกว่าเกณฑ์) จะไม่ถูกแจ้งเตือนในระดับนั้น
+      </div>
+    </div>
+  </div>
     </div>
   </div>
 
+  <div class="tab-pane fade" id="tab-rvc-one" role="tabpanel" aria-labelledby="tab-btn-rvc-one" tabindex="0">
+    <div class="d-flex flex-column gap-3">
   <div class="card border-0 shadow-sm" style="border-radius:14px">
     <div class="card-body">
       <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-shield-lock"></i> การเข้าสู่ระบบผ่าน RVC-ONE (SSO)</div>
@@ -169,7 +233,7 @@ use App\Core\View;
         <div class="alert alert-danger py-2" style="font-size:.85rem"><i class="bi bi-exclamation-triangle"></i> ซิงค์ไม่สำเร็จ: <?= View::e($oaSyncError) ?></div>
       <?php endif; ?>
       <?php if (!$oaSecretSet): ?>
-        <div class="alert alert-warning py-2" style="font-size:.82rem"><i class="bi bi-key"></i> ยังไม่ได้ตั้งค่า <code>client_secret</code> — <a href="#oa-secret">กรอกที่ส่วนการเข้าสู่ระบบผ่าน RVC-ONE ด้านบน</a></div>
+        <div class="alert alert-warning py-2" style="font-size:.82rem"><i class="bi bi-key"></i> ยังไม่ได้ตั้งค่า <code>client_secret</code> — กรอกที่ส่วน client_secret ด้านบน</div>
       <?php endif; ?>
 
       <div class="mb-3" style="font-size:.8rem;background:var(--bs-tertiary-bg);border-radius:9px;padding:10px 12px">
@@ -212,32 +276,38 @@ use App\Core\View;
       <div class="form-text mt-2" style="font-size:.72rem">ตั้งเวลาอัตโนมัติด้วย cron บนเซิร์ฟเวอร์: <code>php <?= View::e(APP_ROOT) ?>/cli/oa-user-sync.php</code> (เพิ่ม <code>--full</code> เพื่อดึงทั้งหมด)</div>
     </div>
   </div>
+    </div>
+  </div>
 
-  <?php if ($notifySaved): ?>
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> บันทึกค่าเริ่มต้นการแจ้งเตือนแล้ว</div>
+  <div class="tab-pane fade" id="tab-rms" role="tabpanel" aria-labelledby="tab-btn-rms" tabindex="0">
+    <div class="d-flex flex-column gap-3">
+  <?php if ($urlUpdated): ?>
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> บันทึก URL ของระบบภายนอกแล้ว</div>
+  <?php endif; ?>
+  <?php if (Request::str('urlError') === '1'): ?>
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle"></i> URL ไม่ถูกต้อง กรุณาระบุในรูปแบบ http:// หรือ https://</div>
+  <?php endif; ?>
+  <?php if ($synced): ?>
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> ซิงค์ข้อมูลผู้ใช้เรียบร้อยแล้ว</div>
+  <?php endif; ?>
+  <?php if ($syncError): ?>
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle"></i> ซิงค์ข้อมูลไม่สำเร็จ: <?= View::e($syncError) ?></div>
   <?php endif; ?>
 
   <div class="card border-0 shadow-sm" style="border-radius:14px">
     <div class="card-body">
-      <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-bell"></i> ค่าเริ่มต้นการแจ้งเตือนงานใกล้ถึงกำหนด</div>
-      <div class="text-body-secondary mb-3" style="font-size:.78rem">
-        ค่าเริ่มต้นสำหรับผู้ใช้ทุกคน — ผู้ใช้แต่ละคนสามารถกำหนดจำนวนวันแจ้งเตือนล่วงหน้าของตนเองทับค่านี้ได้ที่เมนู "การแจ้งเตือนของฉัน"
-      </div>
-      <form method="post" action="<?= Url::to('/admin/settings/notify') ?>" class="d-flex gap-3 flex-wrap align-items-end">
+      <div style="font-weight:600;font-size:.95rem;margin-bottom:4px"><i class="bi bi-hdd-network"></i> การเชื่อมต่อระบบภายนอก (RMS)</div>
+      <div class="text-body-secondary mb-3" style="font-size:.78rem">ที่อยู่เซิร์ฟเวอร์ต้นทางสำหรับโอนข้อมูลผู้ใช้ (เฉพาะโปรโตคอล+โดเมน) — เส้นทาง API และพารามิเตอร์ถูกกำหนดไว้ในโค้ดของระบบแล้ว ไม่ต้องระบุซ้ำที่นี่</div>
+
+      <form method="post" action="<?= Url::to('/admin/settings/url') ?>" class="d-flex flex-column gap-2">
         <?= Csrf::field() ?>
-        <div>
-          <label class="form-label" style="font-size:.82rem">เตือนล่วงหน้า (วัน)</label>
-          <input type="number" name="warn_days_default" min="1" max="60" class="form-control form-control-sm" style="max-width:120px" value="<?= (int) $warnDaysDefault ?>" required>
+        <label class="form-label" style="font-size:.82rem">Base URL</label>
+        <div class="d-flex gap-2 flex-wrap">
+          <input type="text" name="base_url" class="form-control form-control-sm" style="max-width:360px" value="<?= View::e($baseUrl) ?>" placeholder="http://rms.rvc.ac.th" required>
+          <button type="submit" class="btn btn-sm btn-primary">บันทึก</button>
         </div>
-        <div>
-          <label class="form-label" style="font-size:.82rem">แจ้งเตือนระดับด่วนที่สุด (ชั่วโมง)</label>
-          <input type="number" name="urgent_hours" min="1" max="720" class="form-control form-control-sm" style="max-width:140px" value="<?= (int) $urgentHours ?>" required>
-        </div>
-        <button type="submit" class="btn btn-sm btn-primary">บันทึก</button>
+        <div class="text-body-secondary" style="font-size:.72rem;font-family:ui-monospace,monospace">endpoint: <?= View::e($baseUrl) ?>/api_connection.php?app_name=nutty&amp;data=people</div>
       </form>
-      <div class="form-text mt-2">
-        งานที่ถูกมอบหมายมาแบบกระชั้นชิดตั้งแต่ต้น (ระยะเวลาจากวันที่มอบหมายถึงกำหนดส่งสั้นกว่าเกณฑ์) จะไม่ถูกแจ้งเตือนในระดับนั้น
-      </div>
     </div>
   </div>
 
@@ -275,4 +345,7 @@ use App\Core\View;
       </form>
     </div>
   </div>
+    </div>
+  </div>
+</div>
 </div>

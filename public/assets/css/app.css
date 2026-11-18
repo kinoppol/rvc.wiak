@@ -226,5 +226,18 @@ body::before {
 .detail-head { background: linear-gradient(110deg, rgba(19,35,91,.95) 0%, rgba(30,58,138,.92) 70%, rgba(37,99,235,.9) 100%); }
 .modal-overlay .card { background: var(--glass-bg-strong) !important; }
 
+/* settings tabs: glass pill bar */
+.settings-tabs {
+  gap: 6px; padding: 6px; border-radius: 16px; display: inline-flex; flex-wrap: wrap;
+  background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+}
+.settings-tabs .nav-link { border-radius: 12px; color: var(--ui-navy-2); font-weight: 500; font-size: .86rem; padding: 7px 14px; }
+.settings-tabs .nav-link:hover { background: rgba(255,255,255,.6); }
+.settings-tabs .nav-link.active { color: #fff; background-image: linear-gradient(180deg, #3b82f6, #1d4ed8); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 6px 16px -8px rgba(37,99,235,.9); }
+[data-bs-theme="dark"] .settings-tabs .nav-link { color: #cbd5e1; }
+[data-bs-theme="dark"] .settings-tabs .nav-link:hover { background: rgba(255,255,255,.06); }
+[data-bs-theme="dark"] .settings-tabs .nav-link.active { color: #fff; }
+
 /* timeline dots */
 .tl-dot { background: linear-gradient(135deg, #3b82f6, #1e3a8a); box-shadow: 0 0 0 4px rgba(37,99,235,.15); }

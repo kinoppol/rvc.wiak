@@ -1,11 +1,12 @@
 <?php
 use App\Core\View;
+use App\Models\Setting;
 use App\Models\Ticket;
 /** @var array $rows */
 /** @var array $stats */
 
 $statCards = [
-    ['label' => 'ตั๋วงานทั้งหมด', 'value' => $stats['total'], 'hint' => 'ปีการศึกษา ' . ((int) date('Y') + 543), 'icon' => 'ticket-detailed-fill', 'grad' => 'linear-gradient(135deg,#60a5fa,#2563eb)', 'glow' => 'rgba(37,99,235,.45)'],
+    ['label' => 'ตั๋วงานทั้งหมด', 'value' => $stats['total'], 'hint' => 'ปีการศึกษา ' . Setting::academicTerm()['year'], 'icon' => 'ticket-detailed-fill', 'grad' => 'linear-gradient(135deg,#60a5fa,#2563eb)', 'glow' => 'rgba(37,99,235,.45)'],
     ['label' => 'กำลังดำเนินงาน', 'value' => $stats['doing'], 'hint' => 'เกินกำหนด ' . $stats['overdue'] . ' รายการ', 'icon' => 'hourglass-split', 'grad' => 'linear-gradient(135deg,#fbbf24,#f97316)', 'glow' => 'rgba(249,115,22,.45)'],
     ['label' => 'เสร็จสิ้น / อนุมัติแล้ว', 'value' => $stats['done'], 'hint' => 'จากทั้งหมด ' . $stats['total'] . ' รายการ', 'icon' => 'check2-circle', 'grad' => 'linear-gradient(135deg,#34d399,#059669)', 'glow' => 'rgba(16,185,129,.45)'],
     ['label' => 'งานที่สั่งข้ามขั้น', 'value' => $stats['cross'], 'hint' => $stats['total'] > 0 ? round($stats['cross'] / $stats['total'] * 100, 1) . '% ของงานทั้งหมด' : '—', 'icon' => 'diagram-3-fill', 'grad' => 'linear-gradient(135deg,#a78bfa,#6366f1)', 'glow' => 'rgba(99,102,241,.45)'],

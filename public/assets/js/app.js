@@ -280,4 +280,29 @@
       try { document.execCommand("copy"); flash(); } catch (err) {}
     }
   });
+
+  // Tab sets marked [data-tab-hash] (e.g. /admin/settings) open the tab named
+  // by the URL hash (#rms, or the id of something inside a tab pane), so a
+  // form POST that redirects back with "#rms" lands on the tab it came from.
+  // Switching tabs rewrites the hash so a reload stays on the same tab.
+  var tabSet = document.querySelector("[data-tab-hash]");
+  if (tabSet && window.bootstrap && bootstrap.Tab) {
+    var showFromHash = function () {
+      var h = decodeURIComponent((location.hash || "").slice(1));
+      if (!h) return;
+      var btn = tabSet.querySelector('[data-hash="' + h.replace(/"/g, "") + '"]');
+      if (!btn) {
+        var target = document.getElementById(h);
+        var pane = target && target.closest(".tab-pane");
+        if (pane) btn = tabSet.querySelector('[data-bs-target="#' + pane.id + '"]');
+      }
+      if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+    };
+    showFromHash();
+    window.addEventListener("hashchange", showFromHash);
+    tabSet.addEventListener("shown.bs.tab", function (e) {
+      var h = e.target.getAttribute("data-hash");
+      if (h && history.replaceState) history.replaceState(null, "", "#" + h);
+    });
+  }
 })();
