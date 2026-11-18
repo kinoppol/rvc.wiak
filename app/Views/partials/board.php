@@ -5,10 +5,10 @@ use App\Models\Ticket;
 /** @var array $stats */
 
 $statCards = [
-    ['label' => 'ตั๋วงานทั้งหมด', 'value' => $stats['total'], 'hint' => 'ปีการศึกษา ' . ((int) date('Y') + 543), 'icon' => 'ticket-detailed-fill', 'bg' => 'rgba(30,58,138,.12)', 'fg' => '#1e3a8a'],
-    ['label' => 'กำลังดำเนินงาน', 'value' => $stats['doing'], 'hint' => 'เกินกำหนด ' . $stats['overdue'] . ' รายการ', 'icon' => 'hourglass-split', 'bg' => 'rgba(217,119,6,.14)', 'fg' => '#b45309'],
-    ['label' => 'เสร็จสิ้น / อนุมัติแล้ว', 'value' => $stats['done'], 'hint' => 'จากทั้งหมด ' . $stats['total'] . ' รายการ', 'icon' => 'check2-circle', 'bg' => 'rgba(16,185,129,.14)', 'fg' => '#047857'],
-    ['label' => 'งานที่สั่งข้ามขั้น', 'value' => $stats['cross'], 'hint' => $stats['total'] > 0 ? round($stats['cross'] / $stats['total'] * 100, 1) . '% ของงานทั้งหมด' : '—', 'icon' => 'diagram-3-fill', 'bg' => 'rgba(14,165,233,.14)', 'fg' => '#0369a1'],
+    ['label' => 'ตั๋วงานทั้งหมด', 'value' => $stats['total'], 'hint' => 'ปีการศึกษา ' . ((int) date('Y') + 543), 'icon' => 'ticket-detailed-fill', 'grad' => 'linear-gradient(135deg,#60a5fa,#2563eb)', 'glow' => 'rgba(37,99,235,.45)'],
+    ['label' => 'กำลังดำเนินงาน', 'value' => $stats['doing'], 'hint' => 'เกินกำหนด ' . $stats['overdue'] . ' รายการ', 'icon' => 'hourglass-split', 'grad' => 'linear-gradient(135deg,#fbbf24,#f97316)', 'glow' => 'rgba(249,115,22,.45)'],
+    ['label' => 'เสร็จสิ้น / อนุมัติแล้ว', 'value' => $stats['done'], 'hint' => 'จากทั้งหมด ' . $stats['total'] . ' รายการ', 'icon' => 'check2-circle', 'grad' => 'linear-gradient(135deg,#34d399,#059669)', 'glow' => 'rgba(16,185,129,.45)'],
+    ['label' => 'งานที่สั่งข้ามขั้น', 'value' => $stats['cross'], 'hint' => $stats['total'] > 0 ? round($stats['cross'] / $stats['total'] * 100, 1) . '% ของงานทั้งหมด' : '—', 'icon' => 'diagram-3-fill', 'grad' => 'linear-gradient(135deg,#a78bfa,#6366f1)', 'glow' => 'rgba(99,102,241,.45)'],
 ];
 ?>
 <div class="row g-3 mb-3">
@@ -16,14 +16,14 @@ $statCards = [
     <div class="col-6 col-lg-3">
       <div class="card border-0 shadow-sm h-100" style="border-radius:14px;overflow:hidden">
         <div class="card-body d-flex gap-3 align-items-start">
-          <div style="width:44px;height:44px;border-radius:12px;background:<?= $s['bg'] ?>;color:<?= $s['fg'] ?>;display:grid;place-items:center;font-size:1.15rem"><i class="bi bi-<?= $s['icon'] ?>"></i></div>
+          <div style="width:44px;height:44px;border-radius:12px;background:<?= $s['grad'] ?>;color:#fff;box-shadow:0 8px 18px -8px <?= $s['glow'] ?>, inset 0 1px 0 rgba(255,255,255,.35);display:grid;place-items:center;font-size:1.15rem"><i class="bi bi-<?= $s['icon'] ?>"></i></div>
           <div class="min-w-0">
             <div class="text-body-secondary" style="font-size:.76rem"><?= $s['label'] ?></div>
             <div style="font-size:1.6rem;font-weight:600;line-height:1.2"><?= (int) $s['value'] ?></div>
             <div class="text-body-secondary" style="font-size:.72rem"><?= $s['hint'] ?></div>
           </div>
         </div>
-        <div style="height:4px;background:<?= $s['fg'] ?>"></div>
+        <div style="height:4px;background:<?= $s['grad'] ?>"></div>
       </div>
     </div>
   <?php endforeach; ?>
