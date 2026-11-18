@@ -10,8 +10,10 @@ use App\Core\Request;
 use App\Core\Upload;
 use App\Core\View;
 use App\Models\AuditLog;
+use App\Models\Picker;
 use App\Models\Role;
 use App\Models\Ticket;
+use App\Models\TicketEdit;
 use App\Models\TicketFile;
 use App\Models\TicketQuestion;
 use App\Models\TicketTimeline;
@@ -40,13 +42,17 @@ final class TicketController extends Controller
             't' => $t,
             'files' => TicketFile::forTicket($id),
             'questions' => TicketQuestion::forTicket($id),
+            'edits' => TicketEdit::forTicket($id),
+            'unseenEdits' => $isAssignee ? TicketEdit::unseenForTicket($id, (int) $user['id']) : [],
+            'editsReady' => TicketEdit::ready(),
             'timeline' => TicketTimeline::forTicket($id),
             'durations' => Ticket::durations($t),
             'isAssigner' => $isAssigner,
             'isOwnerAssigner' => $isOwnerAssigner,
             'isAssignee' => $isAssignee,
             'activeRole' => $activeRole,
-            'people' => User::allWithRoles(),
+            'personItems' => Picker::people((int) $t['to_user_id'], (int) $user['id'], $activeRole),
+            'unitItems' => Picker::units(),
         ]));
     }
 
@@ -54,7 +60,9 @@ final class TicketController extends Controller
     {
         $this->requireLogin();
         $this->html(View::render('partials/ticket_new', [
-            'people' => User::allWithRoles(),
+            'personItems' => Picker::people(null, (int) Auth::user()['id'], Auth::activeRole()),
+            'unitItems' => Picker::units(),
+            'defaultDue' => Ticket::defaultDue(),
         ]));
     }
 
@@ -186,6 +194,66 @@ final class TicketController extends Controller
         $this->assertAssignerOwner($t, $user);
         Ticket::setStatus((int) $t['id'], 'forced', (int) $user['id'], 'สั่งปิดงานทันที (Force Close)');
         AuditLog::record((int) Auth::realUser()['id'], Auth::isImpersonating() ? (int) $user['id'] : null, 'ticket.force_close', 'ticket', (int) $t['id']);
+        $this->json(['ok' => true]);
+    }
+
+    public function update(array $args): void
+    {
+        $user = $this->requireLogin();
+        Csrf::verifyRequestOrFail();
+        $t = $this->loadForAction((int) $args['id']);
+        $this->assertAssignerOwner($t, $user);
+        if (in_array($t['status'], ['done', 'forced'], true)) {
+            $this->json(['ok' => false, 'error' => 'งานนี้ปิดแล้ว แก้ไขไม่ได้'], 422);
+        }
+        if (!TicketEdit::ready()) {
+            $this->json(['ok' => false, 'error' => 'ยังไม่ได้รัน migration สำหรับการแก้ไขตั๋วงาน (ผู้ดูแลระบบ: เมนู Migration ฐานข้อมูล)'], 503);
+        }
+
+        $title = Request::str('title');
+        if ($title === '') {
+            $this->json(['ok' => false, 'error' => 'กรุณากรอกหัวข้องาน'], 422);
+        }
+        $priority = Request::str('priority', 'normal');
+        if (!isset(Ticket::PRIORITY[$priority])) {
+            $priority = 'normal';
+        }
+        $dueRaw = Request::str('due_at');
+        if ($dueRaw !== '' && strtotime($dueRaw) === false) {
+            $this->json(['ok' => false, 'error' => 'รูปแบบวันกำหนดส่งไม่ถูกต้อง'], 422);
+        }
+
+        $changes = Ticket::updateFields((int) $t['id'], [
+            'title' => mb_substr($title, 0, 255),
+            'meta' => mb_substr(Request::str('meta'), 0, 255),
+            'priority' => $priority,
+            'due_at' => $dueRaw !== '' ? date('Y-m-d H:i:s', strtotime($dueRaw)) : null,
+            'description' => (string) ($_POST['description'] ?? ''),
+        ], (int) $user['id']);
+
+        if (!$changes) {
+            $this->json(['ok' => false, 'error' => 'ไม่มีข้อมูลที่เปลี่ยนแปลง'], 422);
+        }
+        AuditLog::record(
+            (int) Auth::realUser()['id'],
+            Auth::isImpersonating() ? (int) $user['id'] : null,
+            'ticket.update',
+            'ticket',
+            (int) $t['id'],
+            'fields=' . implode(',', array_column($changes, 'field'))
+        );
+        $this->json(['ok' => true]);
+    }
+
+    public function acknowledgeEdits(array $args): void
+    {
+        $user = $this->requireLogin();
+        Csrf::verifyRequestOrFail();
+        $t = $this->loadForAction((int) $args['id']);
+        $this->assertAssignee($t, $user);
+        if (TicketEdit::markSeen((int) $t['id'], (int) $user['id']) > 0) {
+            TicketTimeline::add((int) $t['id'], 'ผู้รับมอบหมายรับทราบการแก้ไขตั๋วงาน', (int) $user['id']);
+        }
         $this->json(['ok' => true]);
     }
 

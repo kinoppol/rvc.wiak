@@ -281,6 +281,169 @@
     }
   });
 
+  // Autocomplete fields: <div data-combo> (see app/Views/partials/combo.php).
+  // Items come from the embedded <script type="application/json">, so this
+  // works inside overlays injected with innerHTML. A [data-combo-strict]
+  // field must be chosen from the list — its hidden input gets the item's
+  // value, and typing again clears it.
+  var comboItems = function (box) {
+    if (!box._items) {
+      try { box._items = JSON.parse(box.querySelector("[data-combo-items]").textContent || "[]"); }
+      catch (err) { box._items = []; }
+    }
+    return box._items;
+  };
+  var comboEsc = function (s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
+  };
+  var comboMark = function (text, q) {
+    var t = String(text), i = q ? t.toLowerCase().indexOf(q) : -1;
+    if (i < 0) return comboEsc(t);
+    return comboEsc(t.slice(0, i)) + "<mark>" + comboEsc(t.slice(i, i + q.length)) + "</mark>" + comboEsc(t.slice(i + q.length));
+  };
+  var comboClose = function (box) {
+    var menu = box.querySelector(".combo-menu");
+    if (menu) menu.hidden = true;
+    var input = box.querySelector("[data-combo-input]");
+    if (input) input.setAttribute("aria-expanded", "false");
+    box._active = -1;
+  };
+  // People lists carry rank (2 = directly under the viewer, 1 = further down
+  // that line) and units; members of the unit named in the form's "หน่วยงาน"
+  // field get +2, so they and subordinates come before everyone else.
+  var comboContext = function (box) {
+    var name = box.getAttribute("data-combo-context-input");
+    if (name) {
+      var form = box.closest("form");
+      var field = form && form.querySelector('[name="' + name + '"]');
+      return field ? field.value.trim() : "";
+    }
+    return (box.getAttribute("data-combo-context") || "").trim();
+  };
+  var comboInUnit = function (it, ctx) {
+    if (!ctx || !it.units) return "";
+    var c = ctx.toLowerCase();
+    for (var i = 0; i < it.units.length; i++) {
+      var u = String(it.units[i]).toLowerCase();
+      if (u === c || (c.length >= 3 && (u.indexOf(c) >= 0 || c.indexOf(u) >= 0))) return it.units[i];
+    }
+    return "";
+  };
+  var comboRender = function (box) {
+    var input = box.querySelector("[data-combo-input]");
+    var menu = box.querySelector(".combo-menu");
+    var q = input.value.trim().toLowerCase();
+    var terms = q.split(/\s+/).filter(Boolean);
+    var ctx = comboContext(box);
+    var hits = comboItems(box).filter(function (it) {
+      var hay = (it.label + " " + (it.sub || "")).toLowerCase();
+      return terms.every(function (t) { return hay.indexOf(t) >= 0; });
+    }).map(function (it, i) {
+      var unit = comboInUnit(it, ctx);
+      return { it: it, i: i, unit: unit, score: (it.rank || 0) + (unit ? 2 : 0) };
+    }).sort(function (a, b) {
+      return b.score - a.score || a.i - b.i;
+    }).slice(0, 60).map(function (h) {
+      h.it._unit = h.unit;
+      return h.it;
+    });
+    box._hits = hits;
+    // Strict (pick-from-list) fields preselect the first hit so Enter picks it.
+    // Free-text fields don't, so Enter keeps what was typed.
+    var strict = box.hasAttribute("data-combo-strict");
+    box._active = strict && hits.length ? 0 : -1;
+    if (!hits.length) {
+      menu.innerHTML = '<div class="combo-empty">' + (box.hasAttribute("data-combo-strict") ? "ไม่พบรายชื่อที่ตรงกัน" : "ไม่พบในรายการ — ใช้ข้อความที่พิมพ์ได้") + "</div>";
+    } else {
+      menu.innerHTML = hits.map(function (it, i) {
+        return '<div class="combo-item' + (i === box._active ? " is-active" : "") + '" role="option" data-i="' + i + '">' +
+          '<div class="combo-label">' + comboMark(it.label, terms[0] || "") +
+          (it.rank ? ' <span class="combo-tag combo-tag-chain">' + (it.rank === 2 ? "ใต้บังคับบัญชาโดยตรง" : "ในสายงาน") + "</span>" : "") +
+          (it._unit ? ' <span class="combo-tag combo-tag-unit">อยู่ใน ' + comboEsc(it._unit) + "</span>" : "") + "</div>" +
+          (it.sub ? '<div class="combo-sub">' + comboMark(it.sub, terms[0] || "") + "</div>" : "") + "</div>";
+      }).join("");
+    }
+    menu.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  };
+  var comboPick = function (box, i) {
+    var it = (box._hits || [])[i];
+    if (!it) return;
+    var input = box.querySelector("[data-combo-input]");
+    var hidden = box.querySelector("[data-combo-value]");
+    input.value = it.label;
+    if (hidden) hidden.value = it.v;
+    input.classList.remove("is-invalid");
+    box.classList.add("is-picked");
+    comboClose(box);
+  };
+  var comboMove = function (box, d) {
+    var items = box.querySelectorAll(".combo-item");
+    if (!items.length) return;
+    box._active = (box._active + d + items.length) % items.length;
+    items.forEach(function (el, i) { el.classList.toggle("is-active", i === box._active); });
+    items[box._active].scrollIntoView({ block: "nearest" });
+  };
+  document.addEventListener("focusin", function (e) {
+    var input = e.target.closest && e.target.closest("[data-combo-input]");
+    if (input) comboRender(input.closest("[data-combo]"));
+  });
+  document.addEventListener("input", function (e) {
+    var input = e.target.closest && e.target.closest("[data-combo-input]");
+    if (!input) return;
+    var box = input.closest("[data-combo]");
+    var hidden = box.querySelector("[data-combo-value]");
+    if (hidden) hidden.value = "";
+    box.classList.remove("is-picked");
+    comboRender(box);
+  });
+  document.addEventListener("keydown", function (e) {
+    var input = e.target.closest && e.target.closest("[data-combo-input]");
+    if (!input) return;
+    var box = input.closest("[data-combo]");
+    var open = !box.querySelector(".combo-menu").hidden;
+    if (e.key === "ArrowDown") { e.preventDefault(); if (!open) comboRender(box); else comboMove(box, 1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); if (open) comboMove(box, -1); }
+    else if (e.key === "Enter" && open && box._active >= 0) { e.preventDefault(); comboPick(box, box._active); }
+    else if (e.key === "Escape" && open) { e.preventDefault(); comboClose(box); }
+    else if (e.key === "Tab" && open && box.hasAttribute("data-combo-strict") && box._active >= 0 && !box.classList.contains("is-picked")) { comboPick(box, box._active); }
+  });
+  document.addEventListener("mousedown", function (e) {
+    var item = e.target.closest && e.target.closest(".combo-item");
+    if (item) { e.preventDefault(); comboPick(item.closest("[data-combo]"), +item.getAttribute("data-i")); return; }
+    document.querySelectorAll("[data-combo]").forEach(function (box) {
+      if (!box.contains(e.target)) comboClose(box);
+    });
+  });
+  document.addEventListener("focusout", function (e) {
+    var input = e.target.closest && e.target.closest("[data-combo-input]");
+    if (!input) return;
+    var box = input.closest("[data-combo]");
+    setTimeout(function () { if (!box.contains(document.activeElement)) comboClose(box); }, 120);
+  });
+  // Capture phase: runs before the [data-ajax-form] submit handler, so a strict
+  // field left without a choice stops the submit there.
+  document.addEventListener("submit", function (e) {
+    var bad = null;
+    e.target.querySelectorAll("[data-combo-strict]").forEach(function (box) {
+      var hidden = box.querySelector("[data-combo-value]");
+      var input = box.querySelector("[data-combo-input]");
+      if (hidden && !hidden.value) {
+        // An exact typed name still counts as a choice.
+        var typed = input.value.trim();
+        var exact = comboItems(box).filter(function (it) { return it.label === typed; });
+        if (exact.length === 1) { hidden.value = exact[0].v; return; }
+        input.classList.add("is-invalid");
+        bad = bad || input;
+      }
+    });
+    if (bad) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      bad.focus();
+    }
+  }, true);
+
   // Tab sets marked [data-tab-hash] (e.g. /admin/settings) open the tab named
   // by the URL hash (#rms, or the id of something inside a tab pane), so a
   // form POST that redirects back with "#rms" lands on the tab it came from.
@@ -304,5 +467,62 @@
       var h = e.target.getAttribute("data-hash");
       if (h && history.replaceState) history.replaceState(null, "", "#" + h);
     });
+  }
+  // /admin/org: pencil toggles a row's inline edit form, the add form's ฝ่าย
+  // select only applies to งาน/แผนก, and the search box filters the tree.
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-org-edit], [data-org-edit-group]");
+    if (!t) return;
+    e.preventDefault();
+    var scope = t.hasAttribute("data-org-edit") ? t.closest("[data-org-row]") : t.closest("[data-org-group]");
+    var view = scope.querySelector(t.hasAttribute("data-org-edit") ? ".org-row-view" : ".org-group-head");
+    var form = scope.querySelector(t.hasAttribute("data-org-edit") ? ".org-row-edit" : ".org-group-edit");
+    var opening = form.hidden;
+    form.hidden = !opening;
+    if (t.hasAttribute("data-org-edit")) view.hidden = opening;
+    if (opening) { scope.open = true; var f = form.querySelector("input[name=name]"); f.focus(); f.select(); }
+  });
+  var orgAdd = document.querySelector("[data-org-add]");
+  if (orgAdd) {
+    var syncAdd = function () {
+      var type = orgAdd.querySelector("[data-org-add-type]").value;
+      var div = orgAdd.querySelector("[data-org-add-division]");
+      var noDiv = type === "division" || (type === "department" && orgAdd.hasAttribute("data-dept-no-division"));
+      div.disabled = noDiv;
+      div.hidden = noDiv;
+      orgAdd.querySelector("input[name=name]").placeholder = "ชื่อ" + orgAdd.querySelector("[data-org-add-type]").selectedOptions[0].text + "ใหม่";
+    };
+    orgAdd.querySelector("[data-org-add-type]").addEventListener("change", syncAdd);
+    syncAdd();
+  }
+  var orgFilter = document.querySelector("[data-org-filter]");
+  if (orgFilter) {
+    orgFilter.addEventListener("input", function () {
+      var q = orgFilter.value.trim().toLowerCase();
+      var any = false;
+      document.querySelectorAll("[data-org-group]").forEach(function (g) {
+        var groupHit = q && g.getAttribute("data-org-name").indexOf(q) >= 0;
+        var rows = 0;
+        g.querySelectorAll("[data-org-row]").forEach(function (r) {
+          var hit = !q || groupHit || r.getAttribute("data-org-name").indexOf(q) >= 0;
+          r.hidden = !hit;
+          if (hit) rows++;
+        });
+        var show = !q || groupHit || rows > 0;
+        g.hidden = !show;
+        if (q && show) g.open = true;
+        if (show) any = true;
+      });
+      var none = document.querySelector("[data-org-nohit]");
+      if (none) none.hidden = any;
+    });
+  }
+  // Land on the row a save/add redirected to, briefly highlighted.
+  if (location.hash.indexOf("#u-") === 0) {
+    var landed = document.getElementById(location.hash.slice(1));
+    if (landed) {
+      landed.classList.add("org-flash");
+      landed.scrollIntoView({ block: "center" });
+    }
   }
 })();

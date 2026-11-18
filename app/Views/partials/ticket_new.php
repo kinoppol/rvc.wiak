@@ -3,7 +3,9 @@ use App\Core\Csrf;
 use App\Core\Url;
 use App\Core\View;
 use App\Models\Ticket;
-/** @var array $people */
+/** @var array $personItems */
+/** @var array $unitItems */
+/** @var DateTimeImmutable $defaultDue */
 ?>
 <div class="modal-overlay">
   <div class="card border-0 shadow-lg" style="width:min(560px,100%);border-radius:14px;max-height:92vh;overflow-y:auto">
@@ -21,16 +23,11 @@ use App\Models\Ticket;
         </div>
         <div>
           <label class="form-label" style="font-size:.82rem">หน่วยงาน / หมายเหตุสั้น</label>
-          <input type="text" name="meta" class="form-control form-control-sm" placeholder="เช่น งานประกันคุณภาพ · แผนกสามัญสัมพันธ์">
+          <?= View::render('partials/combo', ['name' => 'meta', 'items' => $unitItems, 'placeholder' => 'พิมพ์ค้นหาชื่องาน / แผนก / ฝ่าย หรือพิมพ์เอง']) ?>
         </div>
         <div>
           <label class="form-label" style="font-size:.82rem">ผู้รับมอบหมาย</label>
-          <select name="to_user_id" class="form-select form-select-sm" required>
-            <option value="">เลือกผู้รับมอบหมาย…</option>
-            <?php foreach ($people as $p): ?>
-              <option value="<?= (int) $p['id'] ?>"><?= View::e($p['full_name']) ?><?= $p['roles'] ? ' (' . View::e(implode(', ', $p['roles'])) . ')' : '' ?></option>
-            <?php endforeach; ?>
-          </select>
+          <?= View::render('partials/combo', ['name' => '', 'valueName' => 'to_user_id', 'items' => $personItems, 'placeholder' => 'พิมพ์ชื่อ บทบาท หรือหน่วยงาน เพื่อค้นหา…', 'required' => true, 'contextInput' => 'meta']) ?>
         </div>
         <div class="row g-2">
           <div class="col-6">
@@ -43,7 +40,8 @@ use App\Models\Ticket;
           </div>
           <div class="col-6">
             <label class="form-label" style="font-size:.82rem">กำหนดส่ง</label>
-            <input type="datetime-local" name="due_at" class="form-control form-control-sm">
+            <input type="datetime-local" name="due_at" class="form-control form-control-sm" value="<?= $defaultDue->format('Y-m-d\TH:i') ?>">
+            <div class="form-text" style="font-size:.7rem">ค่าเริ่มต้น: วันทำการถัดไป <?= $defaultDue->format('H:i') ?> น.</div>
           </div>
         </div>
         <div>

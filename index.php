@@ -64,6 +64,8 @@ $router->post('/tickets/{id}/submit', [TicketController::class, 'submit']);
 $router->post('/tickets/{id}/approve', [TicketController::class, 'approve']);
 $router->post('/tickets/{id}/force-close', [TicketController::class, 'forceClose']);
 $router->post('/tickets/{id}/reassign', [TicketController::class, 'reassign']);
+$router->post('/tickets/{id}/update', [TicketController::class, 'update']);
+$router->post('/tickets/{id}/edits/acknowledge', [TicketController::class, 'acknowledgeEdits']);
 $router->post('/tickets/{id}/questions', [TicketController::class, 'addQuestion']);
 $router->post('/tickets/{id}/questions/{qid}/answer', [TicketController::class, 'answerQuestion']);
 $router->post('/tickets/{id}/files', [TicketController::class, 'uploadFile']);
@@ -95,6 +97,7 @@ $router->get('/admin/org', [OrgController::class, 'index']);
 $router->get('/admin/org-import', [OrgImportController::class, 'index']);
 $router->post('/admin/org-import/preview', [OrgImportController::class, 'preview']);
 $router->post('/admin/org-import/apply', [OrgImportController::class, 'apply']);
+$router->post('/admin/org', [OrgController::class, 'store']); // type in the form (single add form)
 $router->post('/admin/org/{type}', [OrgController::class, 'store']);
 $router->post('/admin/org/{type}/{id}', [OrgController::class, 'update']);
 $router->post('/admin/org/{type}/{id}/delete', [OrgController::class, 'delete']);

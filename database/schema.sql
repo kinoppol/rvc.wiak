@@ -130,6 +130,28 @@ CREATE TABLE IF NOT EXISTS ticket_timeline (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
+-- ticket_edits: field-level history of edits to a ticket after creation.
+-- notify_user_id = the assignee at edit time, set only if they had already
+-- opened the ticket (they need to be told what changed). seen_at = when
+-- they acknowledged the edit.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ticket_edits (
+    id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    ticket_id      INT UNSIGNED NOT NULL,
+    by_user_id     INT UNSIGNED NOT NULL,
+    notify_user_id INT UNSIGNED NULL,
+    changes        TEXT NOT NULL COMMENT 'JSON list of {field,label,old,new}',
+    at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    seen_at        DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_edits_ticket (ticket_id),
+    KEY idx_edits_notify (notify_user_id, seen_at),
+    CONSTRAINT fk_edits_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_edits_by FOREIGN KEY (by_user_id) REFERENCES users(id),
+    CONSTRAINT fk_edits_notify FOREIGN KEY (notify_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------
 -- audit_log: every state-changing action, including impersonation.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -190,10 +212,13 @@ CREATE TABLE IF NOT EXISTS works (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS departments (
-    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name       VARCHAR(150) NOT NULL UNIQUE,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id)
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name        VARCHAR(150) NOT NULL UNIQUE,
+    division_id INT UNSIGNED NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_departments_division (division_id),
+    CONSTRAINT fk_departments_division FOREIGN KEY (division_id) REFERENCES divisions(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------

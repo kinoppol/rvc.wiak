@@ -34,6 +34,26 @@ final class OrgUnit
         ],
     ];
 
+    /**
+     * Whether this unit type carries a parent ฝ่าย. งาน always does. แผนก
+     * does once migration 20261118_department_division.sql has run — checked
+     * at runtime because a push deploys before an admin runs the migration.
+     */
+    public static function hasDivision(string $type): bool
+    {
+        if ($type === 'work') {
+            return true;
+        }
+        if ($type !== 'department') {
+            return false;
+        }
+        static $deptHas = null;
+        if ($deptHas === null) {
+            $deptHas = (bool) Database::pdo()->query("SHOW COLUMNS FROM departments LIKE 'division_id'")->fetchColumn();
+        }
+        return $deptHas;
+    }
+
     public static function isType(string $type): bool
     {
         return isset(self::TYPES[$type]);
@@ -53,11 +73,11 @@ final class OrgUnit
     public static function all(string $type): array
     {
         $t = self::TYPES[$type]['table'];
-        if ($type === 'work') {
+        if (self::hasDivision($type)) {
             return Database::pdo()->query(
-                'SELECT w.*, d.name AS division_name FROM works w
-                 LEFT JOIN divisions d ON d.id = w.division_id
-                 ORDER BY d.name IS NULL, d.name, w.name'
+                "SELECT x.*, d.name AS division_name FROM {$t} x
+                 LEFT JOIN divisions d ON d.id = x.division_id
+                 ORDER BY d.name IS NULL, d.name, x.name"
             )->fetchAll();
         }
         return Database::pdo()->query("SELECT * FROM {$t} ORDER BY name")->fetchAll();
@@ -75,8 +95,8 @@ final class OrgUnit
     public static function create(string $type, string $name, ?int $divisionId = null): void
     {
         $t = self::TYPES[$type]['table'];
-        if ($type === 'work') {
-            Database::pdo()->prepare('INSERT INTO works (name, division_id) VALUES (?, ?)')
+        if (self::hasDivision($type)) {
+            Database::pdo()->prepare("INSERT INTO {$t} (name, division_id) VALUES (?, ?)")
                 ->execute([$name, $divisionId]);
             return;
         }
@@ -86,12 +106,41 @@ final class OrgUnit
     public static function update(string $type, int $id, string $name, ?int $divisionId = null): void
     {
         $t = self::TYPES[$type]['table'];
-        if ($type === 'work') {
-            Database::pdo()->prepare('UPDATE works SET name = ?, division_id = ? WHERE id = ?')
+        if (self::hasDivision($type)) {
+            Database::pdo()->prepare("UPDATE {$t} SET name = ?, division_id = ? WHERE id = ?")
                 ->execute([$name, $divisionId, $id]);
             return;
         }
         Database::pdo()->prepare("UPDATE {$t} SET name = ? WHERE id = ?")->execute([$name, $id]);
+    }
+
+    /** Set a unit's ฝ่าย only if it has none yet (an admin's choice is kept). */
+    public static function fillDivision(string $type, int $id, ?int $divisionId): void
+    {
+        if ($divisionId === null || !self::hasDivision($type)) {
+            return;
+        }
+        $t = self::TYPES[$type]['table'];
+        Database::pdo()->prepare("UPDATE {$t} SET division_id = ? WHERE id = ? AND division_id IS NULL")
+            ->execute([$divisionId, $id]);
+    }
+
+    /**
+     * People per unit (distinct users holding any role in it), all units of
+     * one type in one query: unit id => count.
+     *
+     * @return array<int,int>
+     */
+    public static function memberCounts(string $type): array
+    {
+        $col = self::TYPES[$type]['column'];
+        $out = [];
+        foreach (Database::pdo()->query(
+            "SELECT {$col} AS id, COUNT(DISTINCT user_id) AS n FROM user_role_units WHERE {$col} IS NOT NULL GROUP BY {$col}"
+        ) as $r) {
+            $out[(int) $r['id']] = (int) $r['n'];
+        }
+        return $out;
     }
 
     /** How many users are currently assigned a role scoped to this unit. */

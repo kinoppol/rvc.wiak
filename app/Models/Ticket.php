@@ -24,6 +24,24 @@ final class Ticket
         'normal' => ['ปกติ',       'rgba(100,116,139,.16)', '#475569'],
     ];
 
+    /** End of the office day, used for the default due time. */
+    public const DEFAULT_DUE_TIME = '16:30';
+
+    /**
+     * Default deadline for a new ticket: the next working day (Mon–Fri) at
+     * the end of the office day. Weekends only — public holidays aren't known
+     * to the system.
+     */
+    public static function defaultDue(?\DateTimeImmutable $now = null): \DateTimeImmutable
+    {
+        $d = ($now ?? new \DateTimeImmutable())->modify('+1 day');
+        while ((int) $d->format('N') >= 6) {
+            $d = $d->modify('+1 day');
+        }
+        [$h, $m] = array_map('intval', explode(':', self::DEFAULT_DUE_TIME));
+        return $d->setTime($h, $m);
+    }
+
     public static function generateCode(): string
     {
         $year = (int) date('Y') + 543; // Buddhist Era, matches the design (พ.ศ.)
@@ -261,6 +279,46 @@ final class Ticket
         $st = $pdo->prepare($sql);
         $st->execute($params);
         TicketTimeline::add($id, $label, $byUserId);
+    }
+
+    /**
+     * Edit a ticket's content fields (not status/assignee — those have their
+     * own flows). Returns the changes made, empty if nothing differed. Records
+     * the edit history and a timeline entry; if the assignee had already
+     * opened the ticket the edit is addressed to them for acknowledgement.
+     *
+     * @param array<string,?string> $values keys from TicketEdit::FIELDS
+     * @return array<int,array{field:string,label:string,old:?string,new:?string}>
+     */
+    public static function updateFields(int $id, array $values, int $byUserId): array
+    {
+        $t = self::find($id);
+        if (!$t) {
+            return [];
+        }
+        $changes = TicketEdit::diff($t, $values);
+        if (!$changes) {
+            return [];
+        }
+
+        $sets = [];
+        $params = [];
+        foreach ($changes as $c) {
+            $sets[] = "`{$c['field']}` = ?"; // field names come from TicketEdit::FIELDS, never the request
+            $params[] = $c['new'];
+        }
+        $params[] = $id;
+        Database::pdo()->prepare('UPDATE tickets SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+
+        $toUserId = (int) $t['to_user_id'];
+        $notify = ($t['opened_at'] !== null && $toUserId !== $byUserId) ? $toUserId : null;
+        TicketEdit::record($id, $byUserId, $notify, $changes);
+        TicketTimeline::add(
+            $id,
+            'แก้ไขตั๋วงาน: ' . implode(', ', array_column($changes, 'label')) . ($notify ? ' (แจ้งผู้รับมอบหมายแล้ว)' : ''),
+            $byUserId
+        );
+        return $changes;
     }
 
     public static function reassign(int $id, int $newToUserId, string $toRole, int $byUserId): bool

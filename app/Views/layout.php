@@ -7,6 +7,7 @@ use App\Core\View;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Ticket;
+use App\Models\TicketEdit;
 use App\Models\User;
 
 $user = Auth::user();
@@ -25,7 +26,8 @@ if ($user) {
         max(1, (int) Setting::get('notify_urgent_hours', '24'))
     );
 }
-$alertCount = count($alerts['urgent']) + count($alerts['warning']);
+$editAlerts = $user ? TicketEdit::unseenFor((int) $user['id']) : [];
+$alertCount = count($alerts['urgent']) + count($alerts['warning']) + count($editAlerts);
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 ?><!doctype html>
 <html lang="th">
@@ -122,14 +124,29 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         </div>
         <div class="flex-fill"></div>
         <div class="dropdown">
-          <button type="button" class="btn btn-sm <?= $alerts['urgent'] ? 'btn-danger' : ($alerts['warning'] ? 'btn-warning' : 'btn-outline-secondary') ?> position-relative"
+          <button type="button" class="btn btn-sm <?= $alerts['urgent'] ? 'btn-danger' : ($alerts['warning'] ? 'btn-warning' : ($editAlerts ? 'btn-primary' : 'btn-outline-secondary')) ?> position-relative"
                   data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="การแจ้งเตือนงานใกล้ถึงกำหนด">
             <i class="bi bi-bell<?= $alertCount > 0 ? '-fill' : '' ?>"></i>
             <?php if ($alertCount > 0): ?><span class="badge rounded-pill text-bg-dark" style="font-size:.62rem"><?= $alertCount ?></span><?php endif; ?>
           </button>
           <div class="dropdown-menu dropdown-menu-end shadow" style="width:min(380px,92vw);max-height:70vh;overflow-y:auto">
+            <?php if ($editAlerts): ?>
+              <div class="px-3 pt-2 pb-1" style="font-size:.72rem;font-weight:600;color:#1d4ed8">
+                ตั๋วงานที่ถูกแก้ไข รอคุณรับทราบ (<?= count($editAlerts) ?>)
+              </div>
+              <?php foreach ($editAlerts as $ea): ?>
+                <button type="button" class="dropdown-item d-flex flex-column gap-1" data-open-ticket="<?= (int) $ea['id'] ?>" style="white-space:normal;background:rgba(37,99,235,.10);border-bottom:1px solid var(--bs-border-color)">
+                  <div style="font-size:.8rem;font-weight:500"><?= View::e($ea['title']) ?></div>
+                  <div class="d-flex gap-2 flex-wrap" style="font-size:.72rem">
+                    <span style="font-family:ui-monospace,monospace"><?= View::e($ea['code']) ?></span>
+                    <span style="color:#1d4ed8;font-weight:600"><i class="bi bi-pencil-square"></i> แก้ไข: <?= View::e(implode(', ', $ea['labels'])) ?></span>
+                  </div>
+                  <div class="text-body-secondary" style="font-size:.7rem">โดย <?= View::e($ea['by_name']) ?> · <?= date('d/m/Y H:i', strtotime($ea['at'])) ?></div>
+                </button>
+              <?php endforeach; ?>
+            <?php endif; ?>
             <div class="px-3 py-2" style="font-weight:600;font-size:.85rem">งานใกล้ถึงกำหนดส่ง</div>
-            <?php if ($alertCount === 0): ?>
+            <?php if (!$alerts['urgent'] && !$alerts['warning']): ?>
               <div class="px-3 pb-2 text-body-secondary" style="font-size:.8rem">ไม่มีงานที่ต้องแจ้งเตือน</div>
             <?php endif; ?>
 

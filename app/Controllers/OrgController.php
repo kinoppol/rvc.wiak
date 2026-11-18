@@ -26,7 +26,7 @@ final class OrgController extends Controller
     /** Validates a type coming off the URL before it reaches OrgUnit. */
     private function typeOrFail(array $args): string
     {
-        $type = (string) ($args['type'] ?? '');
+        $type = (string) ($args['type'] ?? Request::str('type'));
         if (!OrgUnit::isType($type)) {
             http_response_code(404);
             exit;
@@ -42,6 +42,12 @@ final class OrgController extends Controller
             'divisions' => OrgUnit::all('division'),
             'works' => OrgUnit::all('work'),
             'departments' => OrgUnit::all('department'),
+            'deptHasDivision' => OrgUnit::hasDivision('department'),
+            'counts' => [
+                'division' => OrgUnit::memberCounts('division'),
+                'work' => OrgUnit::memberCounts('work'),
+                'department' => OrgUnit::memberCounts('department'),
+            ],
             'notice' => Request::str('notice'),
             'error' => Request::str('error'),
         ]);
@@ -58,7 +64,7 @@ final class OrgController extends Controller
             $this->redirect('/admin/org?error=' . rawurlencode('กรุณากรอกชื่อ' . OrgUnit::label($type)));
         }
 
-        $divisionId = $type === 'work' ? (Request::int('division_id') ?: null) : null;
+        $divisionId = OrgUnit::hasDivision($type) ? (Request::int('division_id') ?: null) : null;
         try {
             OrgUnit::create($type, $name, $divisionId);
         } catch (\PDOException $e) {
@@ -66,7 +72,9 @@ final class OrgController extends Controller
         }
 
         AuditLog::record((int) Auth::realUser()['id'], null, 'org.create', $type, null, $name);
-        $this->redirect('/admin/org?notice=' . rawurlencode('เพิ่ม' . OrgUnit::label($type) . '"' . $name . '"แล้ว'));
+        $new = array_values(array_filter(OrgUnit::all($type), fn($u) => $u['name'] === $name));
+        $this->redirect('/admin/org?notice=' . rawurlencode('เพิ่ม' . OrgUnit::label($type) . ' "' . $name . '" แล้ว')
+            . ($new ? '#u-' . $type . '-' . (int) $new[0]['id'] : ''));
     }
 
     public function update(array $args): void
@@ -81,7 +89,7 @@ final class OrgController extends Controller
             $this->redirect('/admin/org?error=' . rawurlencode('กรุณากรอกชื่อ' . OrgUnit::label($type)));
         }
 
-        $divisionId = $type === 'work' ? (Request::int('division_id') ?: null) : null;
+        $divisionId = OrgUnit::hasDivision($type) ? (Request::int('division_id') ?: null) : null;
         try {
             OrgUnit::update($type, $id, $name, $divisionId);
         } catch (\PDOException $e) {
@@ -89,7 +97,7 @@ final class OrgController extends Controller
         }
 
         AuditLog::record((int) Auth::realUser()['id'], null, 'org.update', $type, $id, $name);
-        $this->redirect('/admin/org?notice=' . rawurlencode('บันทึกการแก้ไขแล้ว'));
+        $this->redirect('/admin/org?notice=' . rawurlencode('บันทึกการแก้ไขแล้ว') . '#u-' . $type . '-' . $id);
     }
 
     public function delete(array $args): void

@@ -275,10 +275,13 @@ final class RmsOrgImport
         $unitIds = [];
         foreach ($plan['units'] as $u) {
             $id = self::findUnitId($u['type'], $u['name']);
+            $parent = $divIds[$u['division']] ?? null;
             if ($id === null) {
-                OrgUnit::create($u['type'], $u['name'], $u['type'] === 'work' ? ($divIds[$u['division']] ?? null) : null);
+                OrgUnit::create($u['type'], $u['name'], OrgUnit::hasDivision($u['type']) ? $parent : null);
                 $created++;
                 $id = self::findUnitId($u['type'], $u['name']);
+            } else {
+                OrgUnit::fillDivision($u['type'], $id, $parent);
             }
             $unitIds[$u['type'] . '|' . self::unitKey($u['name'])] = $id;
         }
