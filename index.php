@@ -11,6 +11,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\MigrationController;
 use App\Controllers\OaAuthController;
 use App\Controllers\OrgController;
+use App\Controllers\OrgImportController;
 use App\Controllers\ProfileController;
 use App\Controllers\SettingsController;
 use App\Controllers\TicketController;
@@ -91,6 +92,9 @@ $router->post('/admin/settings/oa-secret', [SettingsController::class, 'updateOa
 
 // {type} is one of OrgUnit::TYPES — validated in the controller before use.
 $router->get('/admin/org', [OrgController::class, 'index']);
+$router->get('/admin/org-import', [OrgImportController::class, 'index']);
+$router->post('/admin/org-import/preview', [OrgImportController::class, 'preview']);
+$router->post('/admin/org-import/apply', [OrgImportController::class, 'apply']);
 $router->post('/admin/org/{type}', [OrgController::class, 'store']);
 $router->post('/admin/org/{type}/{id}', [OrgController::class, 'update']);
 $router->post('/admin/org/{type}/{id}/delete', [OrgController::class, 'delete']);

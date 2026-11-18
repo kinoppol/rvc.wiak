@@ -343,6 +343,11 @@ use App\Core\View;
         <?= Csrf::field() ?>
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-cloud-download"></i> ซิงค์ข้อมูลผู้ใช้ตอนนี้</button>
       </form>
+      <hr class="my-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap" style="font-size:.82rem">
+        <i class="bi bi-diagram-3"></i> <span class="flex-fill">โครงสร้างบุคลากร (ฝ่าย / งาน / แผนก และบทบาท) นำเข้าจากหน้าแผนผังของ RMS ได้</span>
+        <a href="<?= Url::to('/admin/org-import') ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-cloud-download"></i> นำเข้าโครงสร้างบุคลากร</a>
+      </div>
     </div>
   </div>
     </div>

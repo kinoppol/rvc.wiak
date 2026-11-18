@@ -40,6 +40,9 @@ $row = function (string $type, array $u, array $divisions): void {
     <?php
 };
 ?>
+<div class="d-flex justify-content-end">
+  <a href="<?= Url::to('/admin/org-import') ?>" class="btn btn-sm btn-primary"><i class="bi bi-cloud-download"></i> นำเข้าโครงสร้างจาก RMS</a>
+</div>
 <?php if ($notice): ?>
   <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> <?= View::e($notice) ?></div>
 <?php endif; ?>
