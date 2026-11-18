@@ -6,7 +6,7 @@ use App\Core\View;
 /** @var bool $oaEnabled */
 /** @var string $oaButtonLabel */
 ?>
-<div style="min-height:100vh;display:grid;place-items:center;background:var(--bs-tertiary-bg,#f1f5f9);padding:20px">
+<div style="min-height:100vh;display:grid;place-items:center;background:radial-gradient(1200px 500px at 10% -10%,rgba(14,165,233,.35),transparent 60%),linear-gradient(135deg,#13235b 0%,#1e3a8a 55%,#2563eb 100%);padding:20px">
   <div class="card border-0 shadow-lg" style="width:min(420px,100%);border-radius:16px">
     <div class="card-body p-4">
       <div class="d-flex align-items-center gap-2 mb-3">

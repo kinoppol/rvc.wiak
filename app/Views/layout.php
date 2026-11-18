@@ -33,6 +33,9 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= View::e($pageTitle ?? 'ระบบมอบหมายและติดตามงาน') ?></title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="<?= Url::asset('vendor/bootstrap/bootstrap.min.css') ?>" rel="stylesheet">
 <link href="<?= Url::asset('vendor/bootstrap-icons/bootstrap-icons.css') ?>" rel="stylesheet">
 <link href="<?= Url::asset('css/app.css') ?>" rel="stylesheet">
