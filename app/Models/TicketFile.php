@@ -47,6 +47,17 @@ final class TicketFile
         return $rows;
     }
 
+    /**
+     * Types the browser may show in a tab instead of downloading. Kept to
+     * PDF and raster images: SVG/HTML could run script on our origin.
+     */
+    public const PREVIEW_MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+    public static function isPreviewable(array $f): bool
+    {
+        return !$f['is_link'] && in_array((string) $f['mime'], self::PREVIEW_MIMES, true);
+    }
+
     public static function find(int $id): ?array
     {
         $st = Database::pdo()->prepare('SELECT * FROM ticket_files WHERE id = ? LIMIT 1');

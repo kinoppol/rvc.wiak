@@ -4,6 +4,7 @@ use App\Core\Url;
 use App\Core\View;
 use App\Models\Ticket;
 use App\Models\TicketEdit;
+use App\Models\TicketFile;
 /** @var array $t */
 /** @var array $files */
 /** @var array $questions */
@@ -103,7 +104,10 @@ $renderChange = function (array $c): void {
                   <?php if ($f['is_link']): ?>
                     <a class="btn btn-sm btn-outline-secondary" href="<?= View::e($f['url']) ?>" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i></a>
                   <?php else: ?>
-                    <a class="btn btn-sm btn-outline-secondary" href="<?= Url::to('/tickets/' . $tid . '/files/' . $f['id']) ?>"><i class="bi bi-download"></i></a>
+                    <?php if (TicketFile::isPreviewable($f)): ?>
+                      <a class="btn btn-sm btn-outline-secondary" href="<?= Url::to('/tickets/' . $tid . '/files/' . $f['id']) ?>?inline=1" target="_blank" rel="noopener" title="เปิดดู"><i class="bi bi-eye"></i></a>
+                    <?php endif; ?>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= Url::to('/tickets/' . $tid . '/files/' . $f['id']) ?>" title="ดาวน์โหลด"><i class="bi bi-download"></i></a>
                   <?php endif; ?>
                 </div>
               <?php endforeach; ?>

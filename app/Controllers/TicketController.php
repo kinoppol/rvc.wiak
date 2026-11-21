@@ -467,8 +467,13 @@ final class TicketController extends Controller
             http_response_code(404);
             exit;
         }
-        header('Content-Type: ' . ($f['mime'] ?: 'application/octet-stream'));
-        header('Content-Disposition: attachment; filename="' . rawurlencode($f['name']) . '"');
+        // ?inline=1 opens PDFs/images in the browser tab instead of downloading.
+        $inline = Request::str('inline') === '1' && TicketFile::isPreviewable($f);
+        $ascii = preg_replace('/[^A-Za-z0-9._-]+/', '_', $f['name']) ?: 'file';
+        header('Content-Type: ' . ($inline ? $f['mime'] : ($f['mime'] ?: 'application/octet-stream')));
+        header('X-Content-Type-Options: nosniff');
+        header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment')
+            . '; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($f['name']));
         header('Content-Length: ' . (string) filesize($path));
         readfile($path);
         exit;
