@@ -35,7 +35,9 @@ final class TicketController extends Controller
 
         $activeRole = Auth::activeRole() ?? 'staff';
         $isAssigner = Role::isAssigner($activeRole);
-        $isOwnerAssigner = $isAssigner && ((int) $t['from_user_id'] === (int) $user['id'] || in_array('admin', User::rolesFor((int) $user['id']), true));
+        // The ticket's own assigner (or an admin) manages it, whatever role is
+        // active now — หัวหน้างาน isn't flagged is_assigner but still assigns work.
+        $isOwnerAssigner = (int) $t['from_user_id'] === (int) $user['id'] || in_array('admin', User::rolesFor((int) $user['id']), true);
         $isAssignee = (int) $t['to_user_id'] === (int) $user['id'];
 
         $this->html(View::render('partials/ticket_detail', [
@@ -195,9 +197,8 @@ final class TicketController extends Controller
 
     private function assertAssignerOwner(array $t, array $user): void
     {
-        $activeRole = Auth::activeRole() ?? 'staff';
         $isAdmin = in_array('admin', User::rolesFor((int) $user['id']), true);
-        if (!Role::isAssigner($activeRole) || (!$isAdmin && (int) $t['from_user_id'] !== (int) $user['id'])) {
+        if (!$isAdmin && (int) $t['from_user_id'] !== (int) $user['id']) {
             $this->json(['ok' => false, 'error' => 'คุณไม่มีสิทธิ์ดำเนินการนี้'], 403);
         }
     }
