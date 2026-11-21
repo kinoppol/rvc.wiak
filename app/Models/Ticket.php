@@ -16,6 +16,7 @@ final class Ticket
         'submitted' => ['ส่งงานแล้ว รออนุมัติ',    'rgba(99,102,241,.15)', '#4338ca'],
         'done'      => ['เสร็จสิ้น / อนุมัติ',      'rgba(16,185,129,.15)', '#047857'],
         'forced'    => ['ปิดงานโดยคำสั่ง',         'rgba(100,116,139,.18)','#475569'],
+        'cancelled' => ['ยกเลิกงาน',               'rgba(220,38,38,.14)',  '#b91c1c'],
     ];
 
     public const PRIORITY = [
@@ -105,7 +106,7 @@ final class Ticket
                 $sql .= " AND t.status IN ('submitted','review')";
                 break;
             case 'done':
-                $sql .= " AND t.status IN ('done','forced')";
+                $sql .= " AND t.status IN ('done','forced','cancelled')";
                 break;
             case 'cross':
                 $sql .= ' AND t.is_cross = 1';
@@ -198,7 +199,7 @@ final class Ticket
              FROM tickets t
              JOIN users uf ON uf.id = t.from_user_id
              JOIN users ut ON ut.id = t.to_user_id
-             WHERE t.status NOT IN ('done','forced')
+             WHERE t.status NOT IN ('done','forced','cancelled')
                AND t.due_at IS NOT NULL
                AND t.due_at <= DATE_ADD(NOW(), INTERVAL ? DAY)
                AND (t.from_user_id = ? OR t.to_user_id = ?)
@@ -239,7 +240,7 @@ final class Ticket
         $doing = (int) $pdo->query("SELECT COUNT(*) FROM tickets WHERE status IN ('ack','doing','review')")->fetchColumn();
         $done = (int) $pdo->query("SELECT COUNT(*) FROM tickets WHERE status IN ('done','forced')")->fetchColumn();
         $cross = (int) $pdo->query('SELECT COUNT(*) FROM tickets WHERE is_cross = 1')->fetchColumn();
-        $overdue = (int) $pdo->query("SELECT COUNT(*) FROM tickets WHERE due_at IS NOT NULL AND due_at < NOW() AND status NOT IN ('done','forced')")->fetchColumn();
+        $overdue = (int) $pdo->query("SELECT COUNT(*) FROM tickets WHERE due_at IS NOT NULL AND due_at < NOW() AND status NOT IN ('done','forced','cancelled')")->fetchColumn();
         return compact('total', 'doing', 'done', 'cross', 'overdue');
     }
 
@@ -271,6 +272,7 @@ final class Ticket
                 break;
             case 'done':
             case 'forced':
+            case 'cancelled':
                 $fields[] = 'closed_at = NOW()';
                 break;
         }

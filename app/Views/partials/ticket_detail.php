@@ -20,7 +20,7 @@ use App\Models\TicketEdit;
 
 [$stLabel, $stBg, $stFg] = Ticket::STATUS[$t['status']];
 [$priLabel, $priBg, $priFg] = Ticket::PRIORITY[$t['priority']];
-$closed = in_array($t['status'], ['done', 'forced'], true);
+$closed = in_array($t['status'], ['done', 'forced', 'cancelled'], true);
 $tid = (int) $t['id'];
 
 /** One field change, old -> new. Long text (description) is shown stacked. */
@@ -192,7 +192,23 @@ $renderChange = function (array $c): void {
                 <div class="text-body-secondary" style="font-size:.82rem">งานนี้ปิดแล้ว ไม่สามารถดำเนินการเพิ่มเติมได้</div>
               <?php elseif ($isOwnerAssigner): ?>
                 <button type="button" class="btn btn-sm btn-primary" data-post="/tickets/<?= $tid ?>/approve" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-check2-circle"></i> อนุมัติผลงาน / ปิดตั๋ว</button>
-                <button type="button" class="btn btn-sm btn-outline-danger" data-post="/tickets/<?= $tid ?>/force-close" data-confirm="ยืนยันสั่งปิดงานทันที (Force Close)? คำถามที่ยังไม่ได้ตอบจะถูกปิดพร้อมกัน" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-lock"></i> สั่งปิดงานทันที (Force Close)</button>
+                <details>
+                  <summary class="btn btn-sm btn-outline-danger w-100 text-start"><i class="bi bi-lock"></i> จบงาน / สั่งปิดงาน (ระบุเหตุผล)</summary>
+                  <form data-ajax-form action="<?= Url::to('/tickets/' . $tid . '/force-close') ?>" data-refresh-ticket="<?= $tid ?>" class="mt-2 d-flex flex-column gap-2">
+                    <?= Csrf::field() ?>
+                    <textarea name="reason" class="form-control form-control-sm" rows="2" placeholder="เหตุผลในการปิด/จบงาน (จำเป็น)" required></textarea>
+                    <div class="text-body-secondary" style="font-size:.72rem"><i class="bi bi-info-circle"></i> คำถามที่ยังไม่ได้ตอบจะถูกปิดพร้อมกัน</div>
+                    <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-lock"></i> ยืนยันปิด / จบงาน</button>
+                  </form>
+                </details>
+                <details>
+                  <summary class="btn btn-sm btn-outline-secondary w-100 text-start"><i class="bi bi-x-circle"></i> ยกเลิกงาน</summary>
+                  <form data-ajax-form action="<?= Url::to('/tickets/' . $tid . '/cancel') ?>" data-refresh-ticket="<?= $tid ?>" class="mt-2 d-flex flex-column gap-2">
+                    <?= Csrf::field() ?>
+                    <textarea name="reason" class="form-control form-control-sm" rows="2" placeholder="เหตุผลในการยกเลิก (ถ้ามี)"></textarea>
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> ยืนยันยกเลิกงาน</button>
+                  </form>
+                </details>
                 <details>
                   <summary class="btn btn-sm btn-outline-secondary w-100 text-start"><i class="bi bi-pencil-square"></i> แก้ไขตั๋วงาน</summary>
                   <form data-ajax-form action="<?= Url::to('/tickets/' . $tid . '/update') ?>" data-refresh-ticket="<?= $tid ?>" class="mt-2 d-flex flex-column gap-2">

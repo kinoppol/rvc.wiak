@@ -63,6 +63,7 @@ $router->post('/tickets/{id}/request-review', [TicketController::class, 'request
 $router->post('/tickets/{id}/submit', [TicketController::class, 'submit']);
 $router->post('/tickets/{id}/approve', [TicketController::class, 'approve']);
 $router->post('/tickets/{id}/force-close', [TicketController::class, 'forceClose']);
+$router->post('/tickets/{id}/cancel', [TicketController::class, 'cancel']);
 $router->post('/tickets/{id}/reassign', [TicketController::class, 'reassign']);
 $router->post('/tickets/{id}/update', [TicketController::class, 'update']);
 $router->post('/tickets/{id}/edits/acknowledge', [TicketController::class, 'acknowledgeEdits']);

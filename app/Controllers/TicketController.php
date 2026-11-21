@@ -248,7 +248,7 @@ final class TicketController extends Controller
         Csrf::verifyRequestOrFail();
         $t = $this->loadForAction((int) $args['id']);
         $this->assertAssignerOwner($t, $user);
-        if (in_array($t['status'], ['done', 'forced'], true)) {
+        if (in_array($t['status'], ['done', 'forced', 'cancelled'], true)) {
             $this->json(['ok' => false, 'error' => 'งานนี้ปิดแล้ว'], 422);
         }
         Ticket::setStatus((int) $t['id'], 'done', (int) $user['id'], 'อนุมัติผลงาน / ปิดตั๋ว');
@@ -261,8 +261,30 @@ final class TicketController extends Controller
         Csrf::verifyRequestOrFail();
         $t = $this->loadForAction((int) $args['id']);
         $this->assertAssignerOwner($t, $user);
-        Ticket::setStatus((int) $t['id'], 'forced', (int) $user['id'], 'สั่งปิดงานทันที (Force Close)');
-        AuditLog::record((int) Auth::realUser()['id'], Auth::isImpersonating() ? (int) $user['id'] : null, 'ticket.force_close', 'ticket', (int) $t['id']);
+        if (in_array($t['status'], ['done', 'forced', 'cancelled'], true)) {
+            $this->json(['ok' => false, 'error' => 'งานนี้ปิดแล้ว'], 422);
+        }
+        $reason = Request::str('reason');
+        if ($reason === '') {
+            $this->json(['ok' => false, 'error' => 'กรุณาระบุเหตุผลในการปิด/จบงาน'], 422);
+        }
+        Ticket::setStatus((int) $t['id'], 'forced', (int) $user['id'], 'ปิด/จบงานโดยคำสั่ง — เหตุผล: ' . $reason);
+        AuditLog::record((int) Auth::realUser()['id'], Auth::isImpersonating() ? (int) $user['id'] : null, 'ticket.force_close', 'ticket', (int) $t['id'], 'reason=' . $reason);
+        $this->json(['ok' => true]);
+    }
+
+    public function cancel(array $args): void
+    {
+        $user = $this->requireLogin();
+        Csrf::verifyRequestOrFail();
+        $t = $this->loadForAction((int) $args['id']);
+        $this->assertAssignerOwner($t, $user);
+        if (in_array($t['status'], ['done', 'forced', 'cancelled'], true)) {
+            $this->json(['ok' => false, 'error' => 'งานนี้ปิดแล้ว'], 422);
+        }
+        $reason = Request::str('reason');
+        Ticket::setStatus((int) $t['id'], 'cancelled', (int) $user['id'], 'ยกเลิกงาน' . ($reason !== '' ? ' — เหตุผล: ' . $reason : ''));
+        AuditLog::record((int) Auth::realUser()['id'], Auth::isImpersonating() ? (int) $user['id'] : null, 'ticket.cancel', 'ticket', (int) $t['id'], $reason !== '' ? 'reason=' . $reason : null);
         $this->json(['ok' => true]);
     }
 
@@ -272,7 +294,7 @@ final class TicketController extends Controller
         Csrf::verifyRequestOrFail();
         $t = $this->loadForAction((int) $args['id']);
         $this->assertAssignerOwner($t, $user);
-        if (in_array($t['status'], ['done', 'forced'], true)) {
+        if (in_array($t['status'], ['done', 'forced', 'cancelled'], true)) {
             $this->json(['ok' => false, 'error' => 'งานนี้ปิดแล้ว แก้ไขไม่ได้'], 422);
         }
         if (!TicketEdit::ready()) {

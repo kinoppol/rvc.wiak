@@ -140,7 +140,7 @@ final class TicketEdit
              JOIN users u ON u.id = e.by_user_id
              WHERE e.notify_user_id = ? AND e.seen_at IS NULL
                AND t.to_user_id = e.notify_user_id
-               AND t.status NOT IN ('done','forced')
+               AND t.status NOT IN ('done','forced','cancelled')
              ORDER BY e.at DESC"
         );
         $st->execute([$userId]);

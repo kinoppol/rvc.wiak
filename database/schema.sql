@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     description   TEXT NULL,
     from_user_id  INT UNSIGNED NOT NULL,
     to_user_id    INT UNSIGNED NOT NULL,
-    status        ENUM('new','ack','doing','review','submitted','done','forced') NOT NULL DEFAULT 'new',
+    status        ENUM('new','ack','doing','review','submitted','done','forced','cancelled') NOT NULL DEFAULT 'new',
     priority      ENUM('urgent','high','normal') NOT NULL DEFAULT 'normal',
     is_cross      TINYINT(1)   NOT NULL DEFAULT 0,
     due_at        DATETIME NULL,
