@@ -34,8 +34,11 @@ final class DashboardController extends Controller
         $filter = Request::str('filter', 'open');
         $q = Request::str('q', '');
 
-        $rows = Ticket::search(['filter' => $filter, 'q' => $q]);
-        $stats = Ticket::stats();
+        // Everyone sees only tickets they assigned or received; the admin role,
+        // when it's the active one, sees every ticket for oversight.
+        $scopeUserId = $activeRole === 'admin' ? null : (int) Auth::user()['id'];
+        $rows = Ticket::search(['filter' => $filter, 'q' => $q, 'forUserId' => $scopeUserId]);
+        $stats = Ticket::stats($scopeUserId);
 
         return [
             'rows' => $rows,

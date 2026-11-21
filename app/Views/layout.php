@@ -15,7 +15,7 @@ $roles = $user ? User::rolesFor((int) $user['id']) : [];
 $activeRole = Auth::activeRole();
 $roleInfo = $activeRole ? Role::find($activeRole) : null;
 $allRoles = Role::all();
-$crossCount = $user ? Ticket::stats()['cross'] : 0;
+$crossCount = $user ? Ticket::stats($activeRole === 'admin' ? null : (int) $user['id'])['cross'] : 0;
 $isAdmin = in_array('admin', $roles, true);
 
 $alerts = ['urgent' => [], 'warning' => []];

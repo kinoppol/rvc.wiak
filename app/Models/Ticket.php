@@ -98,6 +98,12 @@ final class Ticket
                 WHERE 1=1';
         $params = [];
 
+        if (isset($filters['forUserId'])) {
+            $sql .= ' AND (t.from_user_id = ? OR t.to_user_id = ?)';
+            $params[] = (int) $filters['forUserId'];
+            $params[] = (int) $filters['forUserId'];
+        }
+
         switch ($filters['filter'] ?? 'all') {
             case 'open':
                 $sql .= " AND t.status IN ('new','ack','doing','review')";
@@ -233,15 +239,36 @@ final class Ticket
         return $out;
     }
 
-    public static function stats(): array
+    /**
+     * Board counters. With $userId, only tickets that user assigned or
+     * received are counted; null counts every ticket (admin view).
+     */
+    public static function stats(?int $userId = null): array
     {
-        $pdo = Database::pdo();
-        $total = (int) $pdo->query('SELECT COUNT(*) FROM tickets')->fetchColumn();
-        $doing = (int) $pdo->query("SELECT COUNT(*) FROM tickets WHERE status IN ('ack','doing','review')")->fetchColumn();
-        $done = (int) $pdo->query("SELECT COUNT(*) FROM tickets WHERE status IN ('done','forced')")->fetchColumn();
-        $cross = (int) $pdo->query('SELECT COUNT(*) FROM tickets WHERE is_cross = 1')->fetchColumn();
-        $overdue = (int) $pdo->query("SELECT COUNT(*) FROM tickets WHERE due_at IS NOT NULL AND due_at < NOW() AND status NOT IN ('done','forced','cancelled')")->fetchColumn();
-        return compact('total', 'doing', 'done', 'cross', 'overdue');
+        $st = Database::pdo()->prepare(
+            "SELECT COUNT(*) AS total,
+                    COALESCE(SUM(status IN ('ack','doing','review')), 0) AS doing,
+                    COALESCE(SUM(status IN ('done','forced')), 0) AS done,
+                    COALESCE(SUM(is_cross = 1), 0) AS cross_count,
+                    COALESCE(SUM(due_at IS NOT NULL AND due_at < NOW() AND status NOT IN ('done','forced','cancelled')), 0) AS overdue
+             FROM tickets
+             WHERE ? IS NULL OR from_user_id = ? OR to_user_id = ?"
+        );
+        $st->execute([$userId, $userId, $userId]);
+        $r = $st->fetch();
+        return [
+            'total' => (int) $r['total'],
+            'doing' => (int) $r['doing'],
+            'done' => (int) $r['done'],
+            'cross' => (int) $r['cross_count'],
+            'overdue' => (int) $r['overdue'],
+        ];
+    }
+
+    /** Whether the user assigned or received this ticket. */
+    public static function involves(array $t, int $userId): bool
+    {
+        return (int) $t['from_user_id'] === $userId || (int) $t['to_user_id'] === $userId;
     }
 
     public static function markOpenedIfNeeded(int $id, int $viewerId): void

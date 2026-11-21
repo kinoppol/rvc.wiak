@@ -29,6 +29,12 @@ final class TicketController extends Controller
         if (!$t) {
             $this->html('<div class="p-4 text-danger">ไม่พบตั๋วงานนี้</div>', 404);
         }
+        if (!$this->canView($t, $user)) {
+            $this->html('<div class="modal-overlay"><div class="card border-0 shadow-lg p-4" style="border-radius:14px">'
+                . '<div class="mb-3">คุณไม่มีสิทธิ์ดูตั๋วงานนี้ (ไม่ได้เป็นผู้มอบหมายหรือผู้รับมอบหมาย)</div>'
+                . '<div><button type="button" class="btn btn-sm btn-outline-secondary" data-close-overlay>ปิด</button></div>'
+                . '</div></div>', 403);
+        }
 
         Ticket::markOpenedIfNeeded($id, (int) $user['id']);
         $t = Ticket::find($id);
@@ -189,6 +195,13 @@ final class TicketController extends Controller
             $this->json(['ok' => false, 'error' => 'ไม่พบตั๋วงานนี้'], 404);
         }
         return $t;
+    }
+
+    /** Only the ticket's assigner, its assignee, or an admin may see it. */
+    private function canView(array $t, array $user): bool
+    {
+        return Ticket::involves($t, (int) $user['id'])
+            || in_array('admin', User::rolesFor((int) $user['id']), true);
     }
 
     private function assertAssignee(array $t, array $user): void
@@ -438,10 +451,15 @@ final class TicketController extends Controller
 
     public function downloadFile(array $args): void
     {
-        $this->requireLogin();
+        $user = $this->requireLogin();
         $f = TicketFile::find((int) $args['fileId']);
         if (!$f || (int) $f['ticket_id'] !== (int) $args['id'] || $f['is_link']) {
             http_response_code(404);
+            exit;
+        }
+        $t = Ticket::find((int) $f['ticket_id']);
+        if (!$t || !$this->canView($t, $user)) {
+            http_response_code(403);
             exit;
         }
         $path = Upload::absolutePath($f['stored_path']);
