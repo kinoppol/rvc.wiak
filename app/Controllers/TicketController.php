@@ -105,7 +105,76 @@ final class TicketController extends Controller
 
         AuditLog::record((int) Auth::realUser()['id'], Auth::isImpersonating() ? (int) $user['id'] : null, 'ticket.create', 'ticket', $id);
 
+        // Attachments supplied in the create form are best-effort: the ticket is
+        // already saved, so a rejected file (too large, etc.) doesn't fail it.
+        $this->storeAttachments($id, (int) $user['id']);
+
         $this->json(['ok' => true, 'id' => $id]);
+    }
+
+    /**
+     * Stores every file and link attached in the request onto the ticket.
+     * Accepts the multi-file input (`files[]`) and repeatable link rows
+     * (`links[]` / `link_names[]`), and still honours the older single
+     * `file` / `url` / `link_name` fields.
+     *
+     * @return array{added:int,errors:string[]}
+     */
+    private function storeAttachments(int $ticketId, int $userId): array
+    {
+        $added = 0;
+        $errors = [];
+
+        $files = [];
+        if (isset($_FILES['files']) && is_array($_FILES['files']['name'] ?? null)) {
+            $f = $_FILES['files'];
+            for ($i = 0, $n = count($f['name']); $i < $n; $i++) {
+                if ((int) ($f['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
+                $files[] = [
+                    'name' => $f['name'][$i],
+                    'type' => $f['type'][$i] ?? '',
+                    'tmp_name' => $f['tmp_name'][$i] ?? '',
+                    'error' => $f['error'][$i] ?? UPLOAD_ERR_NO_FILE,
+                    'size' => $f['size'][$i] ?? 0,
+                ];
+            }
+        }
+        if ($single = Request::file('file')) {
+            $files[] = $single;
+        }
+        foreach ($files as $file) {
+            $stored = Upload::store($file, $ticketId);
+            if ($stored['ok']) {
+                TicketFile::addUpload($ticketId, $stored, $userId);
+                $added++;
+            } else {
+                $errors[] = $stored['error'] ?? 'อัปโหลดไฟล์ล้มเหลว';
+            }
+        }
+
+        $links = $_POST['links'] ?? [];
+        $linkNames = $_POST['link_names'] ?? [];
+        if (!is_array($links)) {
+            $links = [$links];
+            $linkNames = is_array($linkNames) ? $linkNames : [$linkNames];
+        }
+        if (($legacy = Request::str('url')) !== '') {
+            $links[] = $legacy;
+            $linkNames[] = Request::str('link_name');
+        }
+        foreach ($links as $i => $url) {
+            $url = trim((string) $url);
+            if ($url === '') {
+                continue;
+            }
+            $name = trim((string) ($linkNames[$i] ?? '')) ?: $url;
+            TicketFile::addLink($ticketId, $name, $url, $userId);
+            $added++;
+        }
+
+        return ['added' => $added, 'errors' => $errors];
     }
 
     private function loadForAction(int $id): array
@@ -320,22 +389,11 @@ final class TicketController extends Controller
             $this->json(['ok' => false, 'error' => 'คุณไม่มีสิทธิ์แนบไฟล์ในตั๋วงานนี้'], 403);
         }
 
-        $link = Request::str('url');
-        if ($link !== '') {
-            $name = Request::str('link_name') ?: $link;
-            TicketFile::addLink((int) $t['id'], $name, $link, (int) $user['id']);
-            $this->json(['ok' => true]);
+        $result = $this->storeAttachments((int) $t['id'], (int) $user['id']);
+        if ($result['added'] === 0) {
+            $error = $result['errors'][0] ?? 'กรุณาเลือกไฟล์ หรือใส่ลิงก์';
+            $this->json(['ok' => false, 'error' => $error], 422);
         }
-
-        $file = Request::file('file');
-        if (!$file) {
-            $this->json(['ok' => false, 'error' => 'กรุณาเลือกไฟล์ หรือใส่ลิงก์'], 422);
-        }
-        $stored = Upload::store($file, (int) $t['id']);
-        if (!$stored['ok']) {
-            $this->json(['ok' => false, 'error' => $stored['error']], 422);
-        }
-        TicketFile::addUpload((int) $t['id'], $stored, (int) $user['id']);
         $this->json(['ok' => true]);
     }
 

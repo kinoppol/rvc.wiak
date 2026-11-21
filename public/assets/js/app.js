@@ -232,6 +232,24 @@
     if (e.target.matches("[data-paste-file]")) showPasteHint(e.target);
   });
 
+  // ---------- repeatable external-link rows ----------
+  // The "เพิ่มลิงก์" button clones the first link row so several links can be
+  // attached in one submit (names links[] / link_names[], read as arrays).
+  document.addEventListener("click", function (e) {
+    var add = e.target.closest("[data-add-link]");
+    if (!add) return;
+    var form = add.closest("form") || document;
+    var rows = form.querySelector("[data-link-rows]");
+    if (!rows) return;
+    var row = rows.querySelector("[data-link-row]");
+    if (!row) return;
+    var clone = row.cloneNode(true);
+    clone.querySelectorAll("input").forEach(function (i) { i.value = ""; });
+    rows.appendChild(clone);
+    var first = clone.querySelector("input");
+    if (first) first.focus();
+  });
+
   // Impersonate pick.
   document.addEventListener("click", function (e) {
     var pick = e.target.closest("[data-impersonate-user]");

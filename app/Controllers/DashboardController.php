@@ -31,7 +31,7 @@ final class DashboardController extends Controller
 
     private function boardVars(string $activeRole): array
     {
-        $filter = Request::str('filter', 'all');
+        $filter = Request::str('filter', 'open');
         $q = Request::str('q', '');
 
         $rows = Ticket::search(['filter' => $filter, 'q' => $q]);

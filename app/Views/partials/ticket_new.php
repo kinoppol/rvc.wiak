@@ -15,7 +15,7 @@ use App\Models\Ticket;
         <div style="font-weight:600" class="flex-fill">สร้างตั๋วงานใหม่</div>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-close-overlay><i class="bi bi-x-lg"></i></button>
       </div>
-      <form data-ajax-form action="<?= Url::to('/tickets') ?>" class="d-flex flex-column gap-3">
+      <form data-ajax-form action="<?= Url::to('/tickets') ?>" enctype="multipart/form-data" class="d-flex flex-column gap-3">
         <?= Csrf::field() ?>
         <div>
           <label class="form-label" style="font-size:.82rem">หัวข้องาน</label>
@@ -47,6 +47,23 @@ use App\Models\Ticket;
         <div>
           <label class="form-label" style="font-size:.82rem">รายละเอียดงาน</label>
           <textarea name="description" class="form-control form-control-sm" rows="4"></textarea>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:.82rem">ไฟล์ประกอบงาน <span class="text-body-secondary" style="font-weight:400">(แนบได้หลายไฟล์)</span></label>
+          <input type="file" name="files[]" multiple class="form-control form-control-sm" data-paste-file>
+          <div class="text-body-secondary" style="font-size:.72rem;margin-top:.2rem">
+            <i class="bi bi-clipboard"></i> เลือกได้หลายไฟล์พร้อมกัน หรือกด <kbd>Ctrl</kbd>+<kbd>V</kbd> วางรูป/ไฟล์จากคลิปบอร์ด
+          </div>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:.82rem">ลิงก์ภายนอก <span class="text-body-secondary" style="font-weight:400">(แนบได้หลายลิงก์)</span></label>
+          <div data-link-rows class="d-flex flex-column gap-2">
+            <div class="d-flex gap-2" data-link-row>
+              <input type="url" name="links[]" class="form-control form-control-sm" placeholder="วางลิงก์ภายนอก">
+              <input type="text" name="link_names[]" class="form-control form-control-sm" placeholder="ชื่อลิงก์ (ถ้ามี)" style="max-width:160px">
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-add-link><i class="bi bi-plus-lg"></i> เพิ่มลิงก์</button>
         </div>
         <div class="d-flex justify-content-end gap-2">
           <button type="button" class="btn btn-sm btn-outline-secondary" data-close-overlay>ยกเลิก</button>
