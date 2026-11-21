@@ -126,6 +126,9 @@ $renderChange = function (array $c): void {
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="file"><i class="bi bi-plus-lg"></i> เพิ่มไฟล์</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="link"><i class="bi bi-plus-lg"></i> เพิ่มลิงก์</button>
                 <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-paperclip"></i> แนบไฟล์ / เพิ่มลิงก์</button>
+                <?php if ($isAssignee && $t['status'] !== 'submitted'): ?>
+                  <button type="submit" class="btn btn-sm btn-success" formaction="<?= Url::to('/tickets/' . $tid . '/submit') ?>" data-confirm="ยืนยันส่งงานพร้อมไฟล์/ลิงก์ที่เลือก?"><i class="bi bi-send-check"></i> ส่งงานพร้อมไฟล์แนบ</button>
+                <?php endif; ?>
               </div>
               <div class="text-body-secondary" style="font-size:.73rem">
                 <i class="bi bi-clipboard"></i> กด <kbd>Ctrl</kbd>+<kbd>V</kbd> เพื่อวางรูปภาพหรือไฟล์จากคลิปบอร์ดได้โดยตรง
@@ -268,7 +271,7 @@ $renderChange = function (array $c): void {
                   <button type="button" class="btn btn-sm btn-outline-primary" data-post="/tickets/<?= $tid ?>/start" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-play-circle"></i> เริ่มดำเนินการ</button>
                 <?php endif; ?>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-post="/tickets/<?= $tid ?>/request-review" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-question-circle"></i> ขอทบทวนคำสั่ง (Request Review)</button>
-                <?php if (in_array($t['status'], ['ack', 'doing', 'review'], true)): ?>
+                <?php if (in_array($t['status'], ['new', 'ack', 'doing', 'review'], true)): ?>
                   <button type="button" class="btn btn-sm btn-outline-success" data-post="/tickets/<?= $tid ?>/submit" data-refresh-ticket="<?= $tid ?>"><i class="bi bi-upload"></i> ส่งงาน / รายงานผลต่อผู้บริหาร</button>
                 <?php endif; ?>
               <?php else: ?>

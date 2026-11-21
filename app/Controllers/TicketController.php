@@ -35,10 +35,13 @@ final class TicketController extends Controller
 
         $activeRole = Auth::activeRole() ?? 'staff';
         $isAssigner = Role::isAssigner($activeRole);
+        $isAssignee = (int) $t['to_user_id'] === (int) $user['id'];
         // The ticket's own assigner (or an admin) manages it, whatever role is
         // active now — หัวหน้างาน isn't flagged is_assigner but still assigns work.
-        $isOwnerAssigner = (int) $t['from_user_id'] === (int) $user['id'] || in_array('admin', User::rolesFor((int) $user['id']), true);
-        $isAssignee = (int) $t['to_user_id'] === (int) $user['id'];
+        // An admin who is the assignee gets the assignee actions instead, so
+        // they can submit their own work rather than approve it.
+        $isOwnerAssigner = (int) $t['from_user_id'] === (int) $user['id']
+            || (!$isAssignee && in_array('admin', User::rolesFor((int) $user['id']), true));
 
         $this->html(View::render('partials/ticket_detail', [
             't' => $t,
@@ -239,7 +242,20 @@ final class TicketController extends Controller
         Csrf::verifyRequestOrFail();
         $t = $this->loadForAction((int) $args['id']);
         $this->assertAssignee($t, $user);
-        Ticket::setStatus((int) $t['id'], 'submitted', (int) $user['id'], 'ส่งงาน / รายงานผลต่อผู้บริหาร');
+        if (in_array($t['status'], ['done', 'forced', 'cancelled'], true)) {
+            $this->json(['ok' => false, 'error' => 'งานนี้ปิดแล้ว'], 422);
+        }
+        // Files/links picked in the attachment form travel with the submission.
+        $result = $this->storeAttachments((int) $t['id'], (int) $user['id']);
+        if ($result['errors']) {
+            $this->json(['ok' => false, 'error' => $result['errors'][0]], 422);
+        }
+        Ticket::setStatus(
+            (int) $t['id'],
+            'submitted',
+            (int) $user['id'],
+            'ส่งงาน / รายงานผลต่อผู้บริหาร' . ($result['added'] ? ' (แนบ ' . $result['added'] . ' รายการ)' : '')
+        );
         $this->json(['ok' => true]);
     }
 

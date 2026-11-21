@@ -154,10 +154,16 @@
     var form = e.target.closest("[data-ajax-form]");
     if (!form) return;
     e.preventDefault();
+    // A submit button may post the same fields elsewhere via formaction
+    // (e.g. "ส่งงานพร้อมไฟล์แนบ" in the attachment form) and ask first.
+    var submitter = e.submitter || null;
+    var confirmMsg = submitter && submitter.getAttribute("data-confirm");
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    var action = (submitter && submitter.getAttribute("formaction")) || form.getAttribute("action");
     var fd = new FormData(form);
-    var submitBtn = form.querySelector('[type="submit"]');
+    var submitBtn = submitter || form.querySelector('[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
-    postJson(form.getAttribute("action"), fd).then(function (res) {
+    postJson(action, fd).then(function (res) {
       if (submitBtn) submitBtn.disabled = false;
       if (!res.body.ok) { alert(res.body.error || "เกิดข้อผิดพลาด"); return; }
       var ticketId = form.getAttribute("data-refresh-ticket");
