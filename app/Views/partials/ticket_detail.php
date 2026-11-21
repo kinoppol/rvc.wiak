@@ -111,15 +111,20 @@ $renderChange = function (array $c): void {
             <?php if (($isAssignee || $isOwnerAssigner) && !$closed): ?>
             <form data-ajax-form action="<?= Url::to('/tickets/' . $tid . '/files') ?>" data-refresh-ticket="<?= $tid ?>" enctype="multipart/form-data" class="mt-3 d-flex flex-column gap-2">
               <?= Csrf::field() ?>
-              <input type="file" name="files[]" multiple class="form-control form-control-sm" style="max-width:320px" data-paste-file>
-              <div data-link-rows class="d-flex flex-column gap-2">
-                <div class="d-flex gap-2 flex-wrap" data-link-row>
+              <div data-rows="file" class="d-flex flex-column gap-2">
+                <div data-row>
+                  <input type="file" name="files[]" multiple class="form-control form-control-sm" style="max-width:320px" data-paste-file>
+                </div>
+              </div>
+              <div data-rows="link" class="d-flex flex-column gap-2">
+                <div class="d-flex gap-2 flex-wrap" data-row>
                   <input type="url" name="links[]" class="form-control form-control-sm" placeholder="หรือวางลิงก์ภายนอก" style="max-width:220px">
                   <input type="text" name="link_names[]" class="form-control form-control-sm" placeholder="ชื่อลิงก์ (ถ้ามี)" style="max-width:180px">
                 </div>
               </div>
               <div class="d-flex gap-2 flex-wrap">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-add-link><i class="bi bi-plus-lg"></i> เพิ่มลิงก์</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="file"><i class="bi bi-plus-lg"></i> เพิ่มไฟล์</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="link"><i class="bi bi-plus-lg"></i> เพิ่มลิงก์</button>
                 <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-paperclip"></i> แนบไฟล์ / เพิ่มลิงก์</button>
               </div>
               <div class="text-body-secondary" style="font-size:.73rem">

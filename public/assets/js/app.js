@@ -232,16 +232,19 @@
     if (e.target.matches("[data-paste-file]")) showPasteHint(e.target);
   });
 
-  // ---------- repeatable external-link rows ----------
-  // The "เพิ่มลิงก์" button clones the first link row so several links can be
-  // attached in one submit (names links[] / link_names[], read as arrays).
+  // ---------- repeatable attachment rows ----------
+  // "เพิ่มไฟล์" / "เพิ่มลิงก์" buttons carry data-add-row="<key>" and clone the
+  // first [data-row] inside the matching [data-rows="<key>"] container, so
+  // several files (files[]) or links (links[]/link_names[]) can be attached in
+  // one submit — PHP reads the repeated names as arrays.
   document.addEventListener("click", function (e) {
-    var add = e.target.closest("[data-add-link]");
+    var add = e.target.closest("[data-add-row]");
     if (!add) return;
+    var key = add.getAttribute("data-add-row");
     var form = add.closest("form") || document;
-    var rows = form.querySelector("[data-link-rows]");
+    var rows = form.querySelector('[data-rows="' + key + '"]');
     if (!rows) return;
-    var row = rows.querySelector("[data-link-row]");
+    var row = rows.querySelector("[data-row]");
     if (!row) return;
     var clone = row.cloneNode(true);
     clone.querySelectorAll("input").forEach(function (i) { i.value = ""; });
