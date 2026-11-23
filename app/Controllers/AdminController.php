@@ -12,6 +12,7 @@ use App\Models\AuditLog;
 use App\Models\OrgUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserMerge;
 
 final class AdminController extends Controller
 {
@@ -137,6 +138,44 @@ final class AdminController extends Controller
         AuditLog::record($realId, null, 'user.update_roles', 'user', $targetId, implode(',', $detail));
 
         $this->json(['ok' => true]);
+    }
+
+    public function duplicates(): void
+    {
+        $this->requireAdmin();
+        $this->page('admin/user_duplicates', [
+            'pageTitle' => 'ตรวจสอบบัญชีซ้ำ',
+            'found' => UserMerge::findDuplicates(),
+            'migrated' => User::hasNationalIdColumn(),
+        ]);
+    }
+
+    public function mergeAllDuplicates(): void
+    {
+        $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+        $count = UserMerge::mergeAllSafe(fn (int $source, int $target) => $this->recordMerge($source, $target));
+        $this->json(['ok' => true, 'merged' => $count]);
+    }
+
+    public function mergeDuplicate(array $args): void
+    {
+        $this->requireAdmin();
+        Csrf::verifyRequestOrFail();
+        $sourceId = (int) $args['id'];
+        $targetId = UserMerge::targetFor($sourceId, true);
+        if ($targetId === null) {
+            $this->json(['ok' => false, 'error' => 'บัญชีนี้ไม่อยู่ในรายการที่รวมได้แล้ว กรุณาโหลดหน้าใหม่'], 409);
+        }
+        UserMerge::merge($sourceId, $targetId);
+        $this->recordMerge($sourceId, $targetId);
+        $this->json(['ok' => true]);
+    }
+
+    private function recordMerge(int $sourceId, int $targetId): void
+    {
+        Auth::remapMergedUser($sourceId, $targetId);
+        AuditLog::record((int) Auth::realUser()['id'], null, 'user.merge', 'user', $targetId, 'merged user #' . $sourceId);
     }
 
     public function impersonate(array $args): void

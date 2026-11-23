@@ -7,6 +7,7 @@ use App\Core\Database;
 use App\Core\Upload;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\User;
 use RuntimeException;
 
 /**
@@ -78,19 +79,21 @@ final class PeopleSync
             }
             $hash = password_hash($password, PASSWORD_DEFAULT);
 
-            $existing = $pdo->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
-            $existing->execute([$username]);
-            $existingId = $existing->fetchColumn();
+            // The national ID may sit on an SSO-created account under another username.
+            $nationalId = User::normalizeNationalId($username);
+            $existingUser = $nationalId !== '' ? User::findByNationalId($nationalId) : User::findByUsername($username);
 
-            if ($existingId !== false) {
-                $userId = (int) $existingId;
+            if ($existingUser !== null) {
+                $userId = (int) $existingUser['id'];
                 $upd = $pdo->prepare('UPDATE users SET password_hash = ?, full_name = ?, email = ? WHERE id = ?');
                 $upd->execute([$hash, $fullName, $email ?: null, $userId]);
+                User::stampNationalId($existingUser, $nationalId);
                 $result['updated']++;
             } else {
                 $ins = $pdo->prepare('INSERT INTO users (username, password_hash, full_name, email, icon) VALUES (?,?,?,?,?)');
                 $ins->execute([$username, $hash, $fullName, $email ?: null, 'person-workspace']);
                 $userId = (int) $pdo->lastInsertId();
+                User::stampNationalId(User::findById($userId) ?? [], $nationalId);
                 if ($staffRoleId !== null) {
                     $pdo->prepare('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)')->execute([$userId, $staffRoleId]);
                 }

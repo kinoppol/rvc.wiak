@@ -30,6 +30,7 @@ use App\Models\Role;
       <?php if ($q !== '' || $role !== ''): ?>
         <a href="<?= Url::to('/admin/users') ?>" class="btn btn-sm btn-outline-secondary">ล้างตัวกรอง</a>
       <?php endif; ?>
+      <a href="<?= Url::to('/admin/users/duplicates') ?>" class="btn btn-sm btn-outline-primary ms-auto"><i class="bi bi-people"></i> ตรวจสอบบัญชีซ้ำ</a>
     </form>
   </div>
 </div>

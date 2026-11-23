@@ -68,11 +68,12 @@ final class User
      * PeopleSync. Brand-new accounts get the bare `staff` role, exactly like
      * the RMS people-sync; an existing account's roles are never changed.
      *
-     * Matching order: (1) an account already linked by oa_user_id, then
-     * (2) an unlinked account whose username is the user's national ID — the
-     * key the RMS people-sync creates accounts under, so those get adopted
-     * rather than duplicated — then (3) an unlinked account with the same
-     * email, then (4) a fresh account.
+     * Matching order: (1) the account holding the user's national ID, the
+     * identity key across RMS and RVC-ONE, then (2) an account already linked
+     * by oa_user_id, then (3) an unlinked account with the same email and no
+     * conflicting national ID, then (4) a fresh account. If (1) wins while a
+     * different account holds this gateway id, that twin is merged in when it
+     * has no national ID of its own, otherwise it just loses the link.
      *
      * $active: null leaves is_active alone (SSO login); true/false sets it
      * (User-sync: status active / suspended).
@@ -90,6 +91,8 @@ final class User
         $user = self::matchOa($oa);
 
         if ($user) {
+            self::resolveOaTwin($user, (int) $oa['id']);
+            self::stampNationalId($user, $nationalId);
             $pdo->prepare(
                 'UPDATE users SET oa_user_id = ?, full_name = ?, email = COALESCE(?, email), department = COALESCE(?, department), is_active = COALESCE(?, is_active) WHERE id = ?'
             )->execute([
@@ -126,6 +129,7 @@ final class User
             $active === false ? 0 : 1,
         ]);
         $userId = (int) $pdo->lastInsertId();
+        self::stampNationalId(self::findById($userId) ?? [], $nationalId);
 
         $staffRoleId = Role::find('staff')['id'] ?? null;
         if ($staffRoleId !== null) {
@@ -145,24 +149,130 @@ final class User
     public static function matchOa(array $oa): ?array
     {
         $pdo = Database::pdo();
+        $rawId = (string) ($oa['national_id'] ?? '');
+        $nationalId = self::normalizeNationalId($rawId);
+
+        if ($nationalId !== '' && ($user = self::findByNationalId($nationalId))) {
+            return $user;
+        }
+
         $st = $pdo->prepare('SELECT * FROM users WHERE oa_user_id = ? LIMIT 1');
         $st->execute([$oa['id']]);
-        $user = $st->fetch() ?: null;
+        if ($user = $st->fetch()) {
+            return $user;
+        }
 
-        $nationalId = $oa['national_id'] ?? '';
-        if (!$user && $nationalId !== '') {
+        // RMS people_id values that aren't 13 digits still key an account by username.
+        if ($rawId !== '' && $nationalId === '') {
             $st = $pdo->prepare('SELECT * FROM users WHERE username = ? AND oa_user_id IS NULL LIMIT 1');
-            $st->execute([$nationalId]);
-            $user = $st->fetch() ?: null;
+            $st->execute([$rawId]);
+            if ($user = $st->fetch()) {
+                return $user;
+            }
         }
 
-        if (!$user && $oa['email'] !== '') {
-            $st = $pdo->prepare('SELECT * FROM users WHERE email = ? AND oa_user_id IS NULL LIMIT 1');
+        if ($oa['email'] !== '') {
+            $st = $pdo->prepare('SELECT * FROM users WHERE email = ? AND oa_user_id IS NULL ORDER BY id');
             $st->execute([$oa['email']]);
-            $user = $st->fetch() ?: null;
+            foreach ($st->fetchAll() as $candidate) {
+                $held = self::nationalIdOf($candidate);
+                if ($nationalId === '' || $held === '' || $held === $nationalId) {
+                    return $candidate;
+                }
+            }
         }
 
-        return $user;
+        return null;
+    }
+
+    /** Whether migration 20261123_add_user_national_id.sql has run. */
+    public static function hasNationalIdColumn(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = (bool) Database::pdo()->query("SHOW COLUMNS FROM users LIKE 'national_id'")->fetchColumn();
+        }
+        return $has;
+    }
+
+    /** Digits only, and only a full 13-digit ID counts; anything else is ''. */
+    public static function normalizeNationalId(string $value): string
+    {
+        $digits = (string) preg_replace('/\D/', '', $value);
+        return strlen($digits) === 13 ? $digits : '';
+    }
+
+    /** The national ID an account holds: its column, else a 13-digit username. */
+    public static function nationalIdOf(array $user): string
+    {
+        $stored = self::normalizeNationalId((string) ($user['national_id'] ?? ''));
+        if ($stored !== '') {
+            return $stored;
+        }
+        $username = (string) ($user['username'] ?? '');
+        return preg_match('/^\d{13}$/', $username) ? $username : '';
+    }
+
+    public static function findByNationalId(string $nationalId): ?array
+    {
+        if (self::hasNationalIdColumn()) {
+            $st = Database::pdo()->prepare(
+                'SELECT * FROM users WHERE national_id = ? OR username = ? ORDER BY (national_id <=> ?) DESC, id LIMIT 1'
+            );
+            $st->execute([$nationalId, $nationalId, $nationalId]);
+        } else {
+            $st = Database::pdo()->prepare('SELECT * FROM users WHERE username = ? LIMIT 1');
+            $st->execute([$nationalId]);
+        }
+        return $st->fetch() ?: null;
+    }
+
+    /**
+     * Record a national ID on an account that has none, and replace a
+     * synthetic oa:{id} username with it so the RMS sync lands here too.
+     * An account already holding a different ID is left alone.
+     */
+    public static function stampNationalId(array $user, string $nationalId): void
+    {
+        $nationalId = self::normalizeNationalId($nationalId);
+        if ($nationalId === '' || empty($user['id'])) {
+            return;
+        }
+        $held = self::nationalIdOf($user);
+        if ($held !== '' && $held !== $nationalId) {
+            return;
+        }
+        $other = self::findByNationalId($nationalId);
+        if ($other && (int) $other['id'] !== (int) $user['id']) {
+            return;
+        }
+
+        $set = ["username = IF(username LIKE 'oa:%', ?, username)"];
+        $params = [$nationalId];
+        if (self::hasNationalIdColumn()) {
+            $set[] = 'national_id = ?';
+            $params[] = $nationalId;
+        }
+        $params[] = (int) $user['id'];
+        Database::pdo()->prepare('UPDATE users SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($params);
+    }
+
+    /** Clear the way for $user to take this gateway id. See upsertFromOa(). */
+    private static function resolveOaTwin(array $user, int $oaId): void
+    {
+        $pdo = Database::pdo();
+        $st = $pdo->prepare('SELECT * FROM users WHERE oa_user_id = ? AND id <> ? LIMIT 1');
+        $st->execute([$oaId, $user['id']]);
+        $twin = $st->fetch();
+        if (!$twin) {
+            return;
+        }
+        if (self::nationalIdOf($twin) !== '') {
+            $pdo->prepare('UPDATE users SET oa_user_id = NULL WHERE id = ?')->execute([$twin['id']]);
+            return;
+        }
+        UserMerge::merge((int) $twin['id'], (int) $user['id']);
+        AuditLog::record((int) $user['id'], null, 'user.merge_auto', 'user', (int) $user['id'], 'merged user #' . (int) $twin['id']);
     }
 
     /**

@@ -73,6 +73,9 @@ $router->post('/tickets/{id}/files', [TicketController::class, 'uploadFile']);
 $router->get('/tickets/{id}/files/{fileId}', [TicketController::class, 'downloadFile']);
 
 $router->get('/admin/users', [AdminController::class, 'manageUsers']);
+$router->get('/admin/users/duplicates', [AdminController::class, 'duplicates']);
+$router->post('/admin/users/duplicates/merge', [AdminController::class, 'mergeAllDuplicates']);
+$router->post('/admin/users/duplicates/{id}/merge', [AdminController::class, 'mergeDuplicate']);
 $router->get('/admin/users/{id}/roles', [AdminController::class, 'editRolesForm']);
 $router->post('/admin/users/{id}/roles', [AdminController::class, 'updateRoles']);
 $router->post('/admin/impersonate/{id}', [AdminController::class, 'impersonate']);

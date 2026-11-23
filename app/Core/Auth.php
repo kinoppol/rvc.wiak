@@ -37,6 +37,16 @@ final class Auth
         unset($_SESSION['impersonating']);
     }
 
+    /** Keep this session valid when the account it points at was merged away. */
+    public static function remapMergedUser(int $sourceId, int $targetId): void
+    {
+        foreach (['real_user_id', 'user_id'] as $key) {
+            if ((int) ($_SESSION[$key] ?? 0) === $sourceId) {
+                $_SESSION[$key] = $targetId;
+            }
+        }
+    }
+
     public static function logout(): void
     {
         $_SESSION = [];

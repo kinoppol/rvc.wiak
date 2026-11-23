@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_path VARCHAR(255) NULL AFTER icon;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS oa_user_id INT UNSIGNED NULL AFTER avatar_path;
 ALTER TABLE users ADD UNIQUE INDEX IF NOT EXISTS uq_users_oa_user_id (oa_user_id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS national_id CHAR(13) NULL COMMENT 'Thai national ID, the identity key across RMS and RVC-ONE' AFTER oa_user_id;
+ALTER TABLE users ADD UNIQUE INDEX IF NOT EXISTS uq_users_national_id (national_id);
 
 CREATE TABLE IF NOT EXISTS user_roles (
     user_id INT UNSIGNED NOT NULL,
