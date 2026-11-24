@@ -46,8 +46,10 @@ App\Core\Oa::configure($config['oa']);
 
 // No session for CLI scripts (cli/oa-user-sync.php under cron), nor for the
 // desktop API: it uses bearer tokens, and each cookie-less poll would otherwise
-// leave a new session file behind.
-if (PHP_SAPI !== 'cli' && !str_starts_with(App\Core\Request::path(), '/api/desktop/')) {
+// leave a new session file behind. The public update feed is the same.
+$sessionless = str_starts_with(App\Core\Request::path(), '/api/desktop/')
+    || str_starts_with(App\Core\Request::path(), '/desktop/updates/');
+if (PHP_SAPI !== 'cli' && !$sessionless) {
     session_name('rvcwiak_session');
     session_set_cookie_params([
         'lifetime' => 0,

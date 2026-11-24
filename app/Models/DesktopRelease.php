@@ -17,15 +17,31 @@ final class DesktopRelease
     public const VERSION_PATTERN = '/^\d{1,5}\.\d{1,5}\.\d{1,5}(-[0-9A-Za-z.]{1,16})?$/';
 
     /** Each allowed extension and the bytes a real file of that type starts with. */
-    private const SIGNATURES = ['exe' => 'MZ', 'msi' => "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"];
+    private const SIGNATURES = ['exe' => 'MZ', 'msi' => "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 'nupkg' => "PK\x03\x04"];
 
+    /** True once both desktop migrations have run. */
     public static function ready(): bool
     {
         static $ready = null;
         if ($ready === null) {
-            $ready = (bool) Database::pdo()->query("SHOW TABLES LIKE 'desktop_releases'")->fetchColumn();
+            $ready = (bool) Database::pdo()->query(
+                "SELECT 1 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'desktop_releases' AND COLUMN_NAME = 'package_stored'"
+            )->fetchColumn();
         }
         return $ready;
+    }
+
+    public static function packagePath(array $release): string
+    {
+        return self::dir() . '/' . basename((string) $release['package_stored']);
+    }
+
+    public static function attachPackage(int $id, array $p): void
+    {
+        Database::pdo()->prepare(
+            'UPDATE desktop_releases SET package_stored = ?, package_name = ?, package_size = ?, package_sha1 = ?, package_sha256 = ? WHERE id = ?'
+        )->execute([$p['stored'], $p['name'], $p['size'], $p['sha1'], $p['sha256'], $id]);
     }
 
     public static function dir(): string
@@ -115,9 +131,14 @@ final class DesktopRelease
     public static function delete(array $release): void
     {
         Database::pdo()->prepare('DELETE FROM desktop_releases WHERE id = ?')->execute([$release['id']]);
-        $path = self::path($release);
-        if (is_file($path)) {
-            @unlink($path);
+        $paths = [self::path($release)];
+        if (!empty($release['package_stored'])) {
+            $paths[] = self::packagePath($release);
+        }
+        foreach ($paths as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+            }
         }
     }
 }

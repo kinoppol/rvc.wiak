@@ -8,7 +8,7 @@ use App\Core\View;
 ?>
 <div style="max-width:900px" class="d-flex flex-column gap-3">
   <?php if (!$ready): ?>
-    <div class="alert alert-warning mb-0">กรุณารัน migration <code>20261124_add_desktop_notifications.sql</code> ที่หน้า <a href="<?= Url::to('/admin/migrations') ?>">Migration ฐานข้อมูล</a> ก่อน</div>
+    <div class="alert alert-warning mb-0">กรุณารัน migration ที่ค้างอยู่ของแอปแจ้งเตือนที่หน้า <a href="<?= Url::to('/admin/migrations') ?>">Migration ฐานข้อมูล</a> ก่อน</div>
   <?php else: ?>
     <div class="card border-0 shadow-sm" style="border-radius:14px">
       <div class="card-body">
@@ -21,6 +21,11 @@ use App\Core\View;
           <div class="col-sm-8">
             <label class="form-label" style="font-size:.82rem">ไฟล์ติดตั้ง (.exe หรือ .msi ไม่เกิน <?= (int) ($maxBytes / 1048576) ?> MB)</label>
             <input type="file" name="file" class="form-control form-control-sm" accept=".exe,.msi" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" style="font-size:.82rem">แพ็กเกจอัปเดต (<code>EduTaskNotifier-เลขรุ่น-full.nupkg</code>)</label>
+            <input type="file" name="package" class="form-control form-control-sm" accept=".nupkg" required>
+            <div class="form-text">สร้างทั้งสองไฟล์ด้วย <code>desktop-app\build-release.ps1</code> แอปที่ติดตั้งแล้วจะอัปเดตเองเมื่อเลขรุ่นสูงกว่ารุ่นเดิม</div>
           </div>
           <div class="col-12">
             <label class="form-label" style="font-size:.82rem">รายละเอียดรุ่น (ไม่บังคับ)</label>
@@ -54,6 +59,7 @@ use App\Core\View;
                     <strong><?= View::e($r['version']) ?></strong>
                     <?php if ($isCurrent): ?><span class="badge text-bg-success">ปัจจุบัน</span><?php endif; ?>
                     <span class="text-body-secondary">.<?= View::e($r['extension']) ?></span>
+                    <?php if (empty($r['package_stored'])): ?><span class="badge text-bg-warning">ไม่มีแพ็กเกจอัปเดต</span><?php endif; ?>
                   </td>
                   <td><?= number_format((int) $r['size_bytes'] / 1048576, 1) ?> MB</td>
                   <td><?= View::e(date('d/m/Y H:i', strtotime((string) $r['created_at']))) ?><div class="text-body-secondary"><?= View::e($r['uploaded_by_name'] ?? '—') ?></div></td>

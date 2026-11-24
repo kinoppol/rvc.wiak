@@ -50,6 +50,8 @@ $router->post('/desktop/pair', [DesktopController::class, 'pairApprove']);
 $router->post('/desktop/devices/{id}/revoke', [DesktopController::class, 'revokeDevice']);
 $router->get('/desktop/download', [DesktopReleaseController::class, 'downloadPage']);
 $router->get('/desktop/download/{id}', [DesktopReleaseController::class, 'download']);
+$router->get('/desktop/updates/releases.win.json', [DesktopReleaseController::class, 'updateFeed']);
+$router->get('/desktop/updates/{file}', [DesktopReleaseController::class, 'updatePackage']);
 $router->get('/admin/desktop-releases', [DesktopReleaseController::class, 'index']);
 $router->post('/admin/desktop-releases/upload', [DesktopReleaseController::class, 'upload']);
 $router->post('/admin/desktop-releases/{id}/current', [DesktopReleaseController::class, 'makeCurrent']);

@@ -42,13 +42,54 @@ final class DesktopReleaseController extends Controller
             $this->html('<!doctype html><meta charset="utf-8"><p>ไม่พบไฟล์ติดตั้งบนเซิร์ฟเวอร์</p>', 404);
         }
 
+        $this->stream($path, 'EduTaskNotifier-Setup-' . $release['version'] . '.' . $release['extension']);
+    }
+
+    /**
+     * Velopack feed: the current release only. Public because the updater runs
+     * before any sign-in, and a package holds no user data.
+     */
+    public function updateFeed(): void
+    {
+        header('Cache-Control: no-store');
+        $r = DesktopRelease::current();
+        $assets = [];
+        if ($r && !empty($r['package_stored']) && is_file(DesktopRelease::packagePath($r))) {
+            $assets[] = [
+                'PackageId' => 'EduTaskNotifier',
+                'Version' => $r['version'],
+                'Type' => 'Full',
+                'FileName' => $r['package_name'],
+                'SHA1' => strtoupper((string) $r['package_sha1']),
+                'SHA256' => strtoupper((string) $r['package_sha256']),
+                'Size' => (int) $r['package_size'],
+                'NotesMarkdown' => (string) ($r['notes'] ?? ''),
+            ];
+        }
+        $this->json(['Assets' => $assets]);
+    }
+
+    public function updatePackage(array $args): void
+    {
+        $r = DesktopRelease::current();
+        if (!$r || empty($r['package_stored']) || !hash_equals((string) $r['package_name'], (string) $args['file'])
+            || !is_file(DesktopRelease::packagePath($r))) {
+            header('Cache-Control: no-store');
+            $this->json(['ok' => false, 'error' => 'not_found'], 404);
+        }
+        $this->stream(DesktopRelease::packagePath($r), (string) $r['package_name']);
+    }
+
+    private function stream(string $path, string $name): void
+    {
         // Don't hold the session lock for the length of a large download.
-        session_write_close();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
         set_time_limit(0);
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
-        $name = 'EduTaskNotifier-Setup-' . $release['version'] . '.' . $release['extension'];
         header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="' . $name . '"');
         header('Content-Length: ' . filesize($path));
@@ -167,38 +208,72 @@ final class DesktopReleaseController extends Controller
             }
         }
 
-        $version = trim((string) ($_POST['version'] ?? ''));
-        $ext = DesktopRelease::extensionOf((string) ($_POST['file_name'] ?? ''));
+        $fileName = (string) ($_POST['file_name'] ?? '');
+        $ext = DesktopRelease::extensionOf($fileName);
         $size = (int) ($_POST['size'] ?? 0);
-        if (!preg_match(DesktopRelease::VERSION_PATTERN, $version)) {
-            $this->fail('รูปแบบเลขรุ่นไม่ถูกต้อง (ตัวอย่าง 1.0.0)', 422);
-        }
-        if ($ext === null) {
-            $this->fail('รองรับเฉพาะไฟล์ .exe และ .msi', 422);
-        }
         if ($size < 1 || $size > DesktopRelease::MAX_BYTES) {
             $this->fail('ไฟล์ต้องมีขนาดไม่เกิน 500 MB', 422);
-        }
-        if (DesktopRelease::versionExists($version)) {
-            $this->fail('มีเลขรุ่นนี้อยู่แล้ว', 422);
         }
         $free = @disk_free_space($dir);
         if ($free !== false && $free < $size) {
             $this->fail('พื้นที่เซิร์ฟเวอร์ไม่พอ', 507);
         }
 
-        $notes = trim((string) ($_POST['notes'] ?? ''));
-        $_SESSION['desktop_upload'] = [
+        $state = [
             'id' => bin2hex(random_bytes(16)),
             'next' => 0,
             'total' => (int) $_POST['total'],
             'size' => $size,
             'received' => 0,
-            'version' => $version,
             'ext' => $ext,
-            'notes' => $notes !== '' ? mb_substr($notes, 0, 1000) : null,
             'make_current' => ($_POST['make_current'] ?? '') === '1',
         ];
+
+        if (($_POST['kind'] ?? '') === 'package') {
+            $release = DesktopRelease::find((int) ($_POST['release_id'] ?? 0));
+            if (!$release || !empty($release['package_stored'])) {
+                $this->fail('ไม่พบรุ่นที่จะเพิ่มแพ็กเกจอัปเดต', 422);
+            }
+            $expected = 'EduTaskNotifier-' . $release['version'] . '-full.nupkg';
+            if ($ext !== 'nupkg' || $fileName !== $expected) {
+                $this->fail('แพ็กเกจอัปเดตต้องชื่อ ' . $expected, 422);
+            }
+            $_SESSION['desktop_upload'] = $state + ['kind' => 'package', 'release_id' => (int) $release['id'], 'name' => $expected, 'version' => $release['version']];
+            return;
+        }
+
+        $version = trim((string) ($_POST['version'] ?? ''));
+        if (!preg_match(DesktopRelease::VERSION_PATTERN, $version)) {
+            $this->fail('รูปแบบเลขรุ่นไม่ถูกต้อง (ตัวอย่าง 1.0.0)', 422);
+        }
+        if ($ext !== 'exe' && $ext !== 'msi') {
+            $this->fail('ตัวติดตั้งรองรับเฉพาะไฟล์ .exe และ .msi', 422);
+        }
+        if (DesktopRelease::versionExists($version)) {
+            $this->fail('มีเลขรุ่นนี้อยู่แล้ว', 422);
+        }
+        $notes = trim((string) ($_POST['notes'] ?? ''));
+        $_SESSION['desktop_upload'] = $state + [
+            'kind' => 'installer',
+            'version' => $version,
+            'notes' => $notes !== '' ? mb_substr($notes, 0, 1000) : null,
+        ];
+    }
+
+    private function finishPackage(array $state, string $dest, string $stored, string $sha): void
+    {
+        DesktopRelease::attachPackage($state['release_id'], [
+            'stored' => $stored,
+            'name' => $state['name'],
+            'size' => $state['size'],
+            'sha1' => (string) hash_file('sha1', $dest),
+            'sha256' => $sha,
+        ]);
+        if ($state['make_current']) {
+            DesktopRelease::setCurrent($state['release_id']);
+        }
+        $this->audit('desktop_release.package', $state['release_id'], $state['version']);
+        $this->json(['ok' => true, 'done' => true, 'id' => $state['release_id']]);
     }
 
     private function finishUpload(array $state, string $part, int $actorId, int $userId): void
@@ -207,7 +282,7 @@ final class DesktopReleaseController extends Controller
             $this->abortUpload($part, 'ไฟล์ที่ได้รับไม่ครบ กรุณาอัปโหลดใหม่');
         }
         if (!DesktopRelease::hasValidSignature($part, $state['ext'])) {
-            $this->abortUpload($part, 'เนื้อหาไฟล์ไม่ใช่ตัวติดตั้ง Windows ที่ถูกต้อง');
+            $this->abortUpload($part, 'เนื้อหาไฟล์ไม่ตรงกับชนิดไฟล์ที่ต้องการ');
         }
 
         $stored = bin2hex(random_bytes(16)) . '.' . $state['ext'];
@@ -217,6 +292,16 @@ final class DesktopReleaseController extends Controller
             $this->abortUpload($part, 'บันทึกไฟล์ไม่สำเร็จ');
         }
         unset($_SESSION['desktop_upload']);
+
+        if ($state['kind'] === 'package') {
+            try {
+                $this->finishPackage($state, $dest, $stored, $sha);
+            } catch (\PDOException $e) {
+                @unlink($dest);
+                $this->fail('บันทึกข้อมูลแพ็กเกจไม่สำเร็จ', 500);
+            }
+            return;
+        }
 
         try {
             $id = DesktopRelease::create([
@@ -228,7 +313,7 @@ final class DesktopReleaseController extends Controller
                 'notes' => $state['notes'],
                 'uploaded_by' => $actorId,
             ]);
-            if ($state['make_current'] || DesktopRelease::current() === null) {
+            if ($state['make_current']) {
                 DesktopRelease::setCurrent($id);
             }
         } catch (\Throwable $e) {

@@ -189,10 +189,14 @@
     if (!form) return;
     e.preventDefault();
     var file = form.elements.file.files[0];
-    if (!file) return;
-    if (file.size > parseInt(form.getAttribute("data-max-bytes"), 10)) { alert("ไฟล์มีขนาดเกินที่กำหนด"); return; }
+    var pkg = form.elements.package.files[0];
+    if (!file || !pkg) return;
+    var maxBytes = parseInt(form.getAttribute("data-max-bytes"), 10);
+    if (file.size > maxBytes || pkg.size > maxBytes) { alert("ไฟล์มีขนาดเกินที่กำหนด"); return; }
+    var expectedPkg = "EduTaskNotifier-" + form.elements.version.value.trim() + "-full.nupkg";
+    if (pkg.name !== expectedPkg) { alert("แพ็กเกจอัปเดตต้องชื่อ " + expectedPkg); return; }
     var chunkSize = parseInt(form.getAttribute("data-chunk-size"), 10);
-    var total = Math.max(1, Math.ceil(file.size / chunkSize));
+    var grandTotal = file.size + pkg.size;
     var btn = form.querySelector('[type="submit"]');
     var wrap = form.querySelector("[data-release-progress]");
     var bar = wrap.querySelector(".progress-bar");
@@ -206,29 +210,47 @@
       wrap.classList.add("d-none");
       alert(message);
     }
-    function send(i) {
-      var fd = new FormData();
-      fd.append("index", i);
-      fd.append("total", total);
-      fd.append("chunk", file.slice(i * chunkSize, (i + 1) * chunkSize), "chunk");
-      if (i === 0) {
-        fd.append("version", form.elements.version.value);
-        fd.append("notes", form.elements.notes.value);
-        fd.append("file_name", file.name);
-        fd.append("size", file.size);
-        fd.append("make_current", form.elements.make_current.checked ? "1" : "0");
+    // One file, chunk by chunk. `first` holds the fields sent with chunk 0.
+    function sendFile(f, first, offset, onDone, onFail) {
+      var total = Math.max(1, Math.ceil(f.size / chunkSize));
+      function send(i) {
+        var fd = new FormData();
+        fd.append("index", i);
+        fd.append("total", total);
+        fd.append("chunk", f.slice(i * chunkSize, (i + 1) * chunkSize), "chunk");
+        if (i === 0) {
+          fd.append("file_name", f.name);
+          fd.append("size", f.size);
+          Object.keys(first).forEach(function (k) { fd.append(k, first[k]); });
+        }
+        postJson(form.getAttribute("action"), fd).then(function (res) {
+          if (!res.body.ok) { onFail(res.body.error || "อัปโหลดไม่สำเร็จ"); return; }
+          progress(Math.round(((offset + Math.min(f.size, (i + 1) * chunkSize)) / grandTotal) * 100));
+          if (res.body.done) { onDone(res.body.id); return; }
+          send(i + 1);
+        }).catch(function () { onFail("การเชื่อมต่อขัดข้อง กรุณาอัปโหลดใหม่"); });
       }
-      postJson(form.getAttribute("action"), fd).then(function (res) {
-        if (!res.body.ok) { stop(res.body.error || "อัปโหลดไม่สำเร็จ"); return; }
-        progress(Math.round(((i + 1) / total) * 100));
-        if (res.body.done) { location.reload(); return; }
-        send(i + 1);
-      }).catch(function () { stop("การเชื่อมต่อขัดข้อง กรุณาอัปโหลดใหม่"); });
+      send(0);
     }
     btn.disabled = true;
     wrap.classList.remove("d-none");
     progress(0);
-    send(0);
+    // The release is published only after its update package has arrived.
+    sendFile(file, {
+      kind: "installer",
+      version: form.elements.version.value,
+      notes: form.elements.notes.value,
+      make_current: "0",
+    }, 0, function (id) {
+      sendFile(pkg, {
+        kind: "package",
+        release_id: id,
+        make_current: form.elements.make_current.checked ? "1" : "0",
+      }, file.size, function () { location.reload(); }, function (message) {
+        var cleanup = function () { stop(message); };
+        postJson("/admin/desktop-releases/" + id + "/delete", {}).then(cleanup, cleanup);
+      });
+    }, stop);
   });
 
   // ---------- todo overlay ----------
