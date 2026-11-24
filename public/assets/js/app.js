@@ -632,4 +632,163 @@
       landed.scrollIntoView({ block: "center" });
     }
   }
+  // ---------- chat ----------
+  // The thread polls for new messages; the composer sends with Enter
+  // (Shift+Enter for a new line) and suggests tickets after "#".
+  (function () {
+    var thread = document.querySelector("[data-chat-thread]");
+    if (!thread) return;
+    var conv = thread.getAttribute("data-conversation");
+    var form = document.querySelector("[data-chat-form]");
+    var input = form && form.querySelector("[data-chat-input]");
+    var suggest = form && form.querySelector("[data-chat-suggest]");
+    var busy = false;
+
+    var lastId = function () { return parseInt(thread.getAttribute("data-last-id"), 10) || 0; };
+    var nearBottom = function () { return thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80; };
+    var toBottom = function () { thread.scrollTop = thread.scrollHeight; };
+    var append = function (res, forceScroll) {
+      if (!res || !res.ok) return;
+      var stick = forceScroll || nearBottom();
+      if (res.html && res.html.trim() !== "") {
+        var empty = thread.querySelector(".chat-thread-empty");
+        if (empty) empty.remove();
+        var holder = document.createElement("div");
+        holder.innerHTML = res.html;
+        Array.prototype.forEach.call(holder.children, function (el) {
+          var id = el.getAttribute("data-msg-id");
+          if (id && thread.querySelector('[data-msg-id="' + id + '"]')) return;
+          thread.appendChild(el.cloneNode(true));
+        });
+      }
+      if (res.last_id > lastId()) thread.setAttribute("data-last-id", res.last_id);
+      if (stick) toBottom();
+    };
+    toBottom();
+
+    var poll = function () {
+      if (busy || document.hidden) return;
+      busy = true;
+      fetch(resolveUrl("/chat/" + conv + "/messages?after=" + lastId()), { headers: { "X-Requested-With": "XMLHttpRequest" } })
+        .then(function (r) { return r.json(); })
+        .then(function (res) { append(res, false); })
+        .catch(function () {})
+        .then(function () { busy = false; });
+    };
+    setInterval(poll, 8000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });
+
+    if (!form) return;
+    var grow = function () {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 160) + "px";
+    };
+    var send = function () {
+      var body = input.value.trim();
+      if (!body || busy) return;
+      busy = true;
+      var btn = form.querySelector('[type="submit"]');
+      btn.disabled = true;
+      postJson(form.getAttribute("action"), { body: body, after: lastId() }).then(function (res) {
+        if (!res.body.ok) { alert(res.body.error || "ส่งข้อความไม่สำเร็จ"); return; }
+        input.value = "";
+        grow();
+        append(res.body, true);
+      }).catch(function () { alert("การเชื่อมต่อขัดข้อง ข้อความยังไม่ถูกส่ง"); })
+        .then(function () { busy = false; btn.disabled = false; input.focus(); });
+    };
+    form.addEventListener("submit", function (e) { e.preventDefault(); closeSuggest(); send(); });
+
+    // ----- "#" ticket suggestions -----
+    var items = [];
+    var active = -1;
+    var timer = null;
+    var seq = 0;
+    var esc = function (s) {
+      return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; });
+    };
+    var token = function () {
+      var before = input.value.slice(0, input.selectionStart);
+      var m = before.match(/(^|\s)#([^\s#]*)$/);
+      return m ? { start: before.length - m[2].length - 1, q: m[2] } : null;
+    };
+    function closeSuggest() {
+      suggest.hidden = true;
+      suggest.innerHTML = "";
+      items = [];
+      active = -1;
+      input.removeAttribute("aria-activedescendant");
+    }
+    var render = function () {
+      if (!items.length) {
+        suggest.innerHTML = '<div class="chat-suggest-empty">ไม่พบตั๋วงานที่คุณเกี่ยวข้อง</div>';
+      } else {
+        suggest.innerHTML = '<div class="chat-suggest-head">อ้างถึงตั๋วงาน</div>' + items.map(function (t, i) {
+          return '<div class="chat-suggest-item' + (i === active ? " is-active" : "") + '" role="option" id="chat-sg-' + i + '" data-i="' + i + '">' +
+            '<span class="chat-suggest-code">#' + esc(t.code) + '</span>' +
+            '<span class="chat-suggest-title">' + esc(t.title) + '</span>' +
+            '<span class="chat-suggest-status">' + esc(t.status) + "</span></div>";
+        }).join("");
+      }
+      suggest.hidden = false;
+      if (active >= 0) input.setAttribute("aria-activedescendant", "chat-sg-" + active);
+    };
+    var lookup = function () {
+      var t = token();
+      if (!t) { closeSuggest(); return; }
+      var mine = ++seq;
+      fetch(resolveUrl("/chat/tickets?q=" + encodeURIComponent(t.q)), { headers: { "X-Requested-With": "XMLHttpRequest" } })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (mine !== seq || !token()) return;
+          items = (res && res.items) || [];
+          active = items.length ? 0 : -1;
+          render();
+        }).catch(function () {});
+    };
+    var pick = function (i) {
+      var t = token();
+      var it = items[i];
+      if (!t || !it) return;
+      var text = "#" + it.code + " ";
+      var end = input.selectionStart;
+      input.value = input.value.slice(0, t.start) + text + input.value.slice(end);
+      var caret = t.start + text.length;
+      input.setSelectionRange(caret, caret);
+      closeSuggest();
+      grow();
+      input.focus();
+    };
+
+    input.addEventListener("input", function () {
+      grow();
+      clearTimeout(timer);
+      timer = setTimeout(lookup, 180);
+    });
+    input.addEventListener("keydown", function (e) {
+      var open = !suggest.hidden && items.length > 0;
+      if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        e.preventDefault();
+        active = (active + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+        render();
+        return;
+      }
+      if (open && (e.key === "Enter" || e.key === "Tab") && active >= 0) { e.preventDefault(); pick(active); return; }
+      if (!suggest.hidden && e.key === "Escape") { e.preventDefault(); closeSuggest(); return; }
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    });
+    input.addEventListener("blur", function () { setTimeout(closeSuggest, 150); });
+    suggest.addEventListener("mousedown", function (e) {
+      var row = e.target.closest(".chat-suggest-item");
+      if (row) { e.preventDefault(); pick(+row.getAttribute("data-i")); }
+    });
+    form.querySelector("[data-chat-hash]").addEventListener("click", function () {
+      var pos = input.selectionStart;
+      var lead = pos > 0 && !/\s/.test(input.value.charAt(pos - 1)) ? " #" : "#";
+      input.value = input.value.slice(0, pos) + lead + input.value.slice(pos);
+      input.focus();
+      input.setSelectionRange(pos + lead.length, pos + lead.length);
+      lookup();
+    });
+  })();
 })();

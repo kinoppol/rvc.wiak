@@ -12,6 +12,11 @@ abstract class Controller
             if (Request::isAjax()) {
                 $this->json(['ok' => false, 'error' => 'กรุณาเข้าสู่ระบบ'], 401);
             }
+            // A page opened from a link (e.g. a desktop notification) comes back here after login.
+            if (Request::method() === 'GET') {
+                $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
+                Auth::rememberReturn(Request::path() . ($query !== '' ? '?' . $query : ''));
+            }
             header('Location: ' . Url::to('/login'));
             exit;
         }

@@ -133,7 +133,8 @@ final class UserMerge
             }
             // Both accounts may hold the same alert (UNIQUE user + dedupe key):
             // keep the target's, and the source's copy cascades on delete.
-            $ignore = $ref['t'] === 'user_notifications' ? 'IGNORE ' : '';
+            // chat_members likewise when both accounts are in one conversation.
+            $ignore = in_array($ref['t'], ['user_notifications', 'chat_members'], true) ? 'IGNORE ' : '';
             $pdo->prepare("UPDATE {$ignore}`{$ref['t']}` SET `{$ref['c']}` = ? WHERE `{$ref['c']}` = ?")
                 ->execute([$targetId, $sourceId]);
         }

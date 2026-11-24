@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Models\AuditLog;
+use App\Models\Chat;
 use App\Models\DesktopDevice;
 use App\Models\Notification;
 use App\Models\Setting;
@@ -20,7 +21,7 @@ use App\Models\User;
  */
 final class DesktopApiController extends Controller
 {
-    private const POLL_SECONDS = 60;
+    private const POLL_SECONDS = 30;
 
     public function __construct()
     {
@@ -55,6 +56,7 @@ final class DesktopApiController extends Controller
             'token' => $device['token'],
             'device_id' => $device['id'],
             'cursor' => Notification::latestId((int) $user['id']),
+            'message_cursor' => Chat::ready() ? Chat::latestIdFor((int) $user['id']) : 0,
             'user' => self::userInfo($user),
             'poll_seconds' => self::POLL_SECONDS,
         ]);
@@ -68,7 +70,26 @@ final class DesktopApiController extends Controller
         $feed = Notification::feed($userId, max(0, (int) ($_GET['after'] ?? 0)), (int) ($_GET['limit'] ?? 50));
         $alerts = Ticket::alertsFor($userId, User::warnDaysFor($user), max(1, (int) Setting::get('notify_urgent_hours', '24')));
 
+        // Chat: without after_message (an app that has no cursor yet) only the
+        // current position comes back, so it starts quiet instead of flooding.
+        $messages = [];
+        $messageCursor = 0;
+        $unreadMessages = 0;
+        if (Chat::ready()) {
+            if (isset($_GET['after_message']) && is_numeric($_GET['after_message'])) {
+                $chat = Chat::feedForDevice($userId, max(0, (int) $_GET['after_message']));
+                $messages = $chat['items'];
+                $messageCursor = $chat['cursor'];
+            } else {
+                $messageCursor = Chat::latestIdFor($userId);
+            }
+            $unreadMessages = Chat::unreadTotal($userId);
+        }
+
         $this->json([
+            'messages' => $messages,
+            'message_cursor' => $messageCursor,
+            'unread_messages' => $unreadMessages,
             'ok' => true,
             'items' => $feed['items'],
             'cursor' => $feed['cursor'],

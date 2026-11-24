@@ -8,6 +8,7 @@ internal sealed class AppSettings
     public const string DefaultServer = "https://wiak.rvc.ac.th/web";
 
     public long Cursor { get; set; }
+    public long? MessageCursor { get; set; }
     public string? UserName { get; set; }
 
     private static string FilePath => Path.Combine(

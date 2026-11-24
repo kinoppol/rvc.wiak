@@ -7,6 +7,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\AvatarController;
 use App\Controllers\CalendarController;
+use App\Controllers\ChatController;
 use App\Controllers\DashboardController;
 use App\Controllers\DesktopApiController;
 use App\Controllers\DesktopController;
@@ -56,6 +57,13 @@ $router->get('/admin/desktop-releases', [DesktopReleaseController::class, 'index
 $router->post('/admin/desktop-releases/upload', [DesktopReleaseController::class, 'upload']);
 $router->post('/admin/desktop-releases/{id}/current', [DesktopReleaseController::class, 'makeCurrent']);
 $router->post('/admin/desktop-releases/{id}/delete', [DesktopReleaseController::class, 'delete']);
+
+$router->get('/chat', [ChatController::class, 'index']);
+$router->get('/chat/tickets', [ChatController::class, 'tickets']);
+$router->post('/chat/start', [ChatController::class, 'start']);
+$router->get('/chat/{id}', [ChatController::class, 'show']);
+$router->get('/chat/{id}/messages', [ChatController::class, 'poll']);
+$router->post('/chat/{id}/messages', [ChatController::class, 'send']);
 
 $router->get('/', [DashboardController::class, 'index']);
 $router->get('/board', [DashboardController::class, 'board']);

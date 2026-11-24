@@ -36,10 +36,26 @@ internal static class Toasts
         }
     }
 
-    /// <summary>Only a path on our own server is ever opened.</summary>
-    public static Uri LinkFor(FeedItem item, string server)
+    public static void ShowMessages(IReadOnlyList<MessageItem> messages, string server)
     {
-        var path = item.OpenPath;
+        if (messages.Count > MaxIndividual)
+        {
+            var senders = messages.Select(m => m.Sender.FullName).Distinct().Count();
+            Show("ข้อความใหม่", $"{messages.Count} ข้อความจาก {senders} คน คลิกเพื่อเปิดสนทนา", SafeLink("/chat", server), "messages");
+            return;
+        }
+        foreach (var m in messages)
+        {
+            // One toast per conversation tag: a newer message replaces the older one.
+            Show($"ข้อความจาก {m.Sender.FullName}", m.Preview, SafeLink(m.OpenPath, server), "c" + m.ConversationId);
+        }
+    }
+
+    public static Uri LinkFor(FeedItem item, string server) => SafeLink(item.OpenPath, server);
+
+    /// <summary>Only a path on our own server is ever opened.</summary>
+    public static Uri SafeLink(string path, string server)
+    {
         var safe = path.StartsWith('/') && !path.StartsWith("//", StringComparison.Ordinal) && !path.Contains('\\');
         return new Uri(server + (safe ? path : "/"));
     }

@@ -23,6 +23,7 @@ internal sealed class TrayApp : ApplicationContext
     private bool _pairing;
     private bool _offline;
     private int _unread;
+    private int _unreadMessages;
     private FeedSummary _summary = new(0, 0, 0);
     private DateTime _nextUpdateCheck = DateTime.MinValue;
 
@@ -89,17 +90,37 @@ internal sealed class TrayApp : ApplicationContext
     private async Task<TimeSpan> PollAllAsync()
     {
         var fresh = new List<FeedItem>();
+        var freshMessages = new List<MessageItem>();
         FeedResponse page;
         var cursor = _settings.Cursor;
+        var messageCursor = _settings.MessageCursor;
         do
         {
-            page = await _api.PollAsync(_token!, cursor, _stop.Token);
+            page = await _api.PollAsync(_token!, cursor, messageCursor, _stop.Token);
             fresh.AddRange(page.Items);
             cursor = page.Cursor;
+            if (messageCursor is not null && page.Messages is { } msgs)
+            {
+                freshMessages.AddRange(msgs.Where(m => freshMessages.All(x => x.Id != m.Id)));
+            }
+            messageCursor = page.MessageCursor ?? messageCursor;
         } while (page.HasMore);
 
         _unread = page.Unread;
         _summary = page.Summary;
+        _unreadMessages = page.UnreadMessages;
+        if (freshMessages.Count > 0)
+        {
+            try
+            {
+                Toasts.ShowMessages(freshMessages, _server);
+            }
+            catch (Exception e) when (e is COMException or InvalidOperationException or UnauthorizedAccessException)
+            {
+                // Windows refused the toast; the count still shows in the tray menu.
+            }
+        }
+        _settings.MessageCursor = messageCursor;
         if (fresh.Count > 0)
         {
             _recent.InsertRange(0, Enumerable.Reverse(fresh));
@@ -137,6 +158,7 @@ internal sealed class TrayApp : ApplicationContext
                 TokenStore.Write(_server, result.Token);
                 _token = result.Token;
                 _settings.Cursor = result.Cursor;
+                _settings.MessageCursor = result.MessageCursor;
                 _settings.UserName = result.User.FullName;
                 _settings.Save();
                 _recent.Clear();
@@ -193,6 +215,8 @@ internal sealed class TrayApp : ApplicationContext
         }
         _token = null;
         _settings.Cursor = 0;
+        _settings.MessageCursor = null;
+        _unreadMessages = 0;
         _settings.UserName = null;
         _settings.Save();
         _unread = 0;
@@ -271,6 +295,7 @@ internal sealed class TrayApp : ApplicationContext
             {
                 _menu.Items.Add(new ToolStripSeparator());
             }
+            _menu.Items.Add(Item(_unreadMessages > 0 ? $"สนทนา ({_unreadMessages} ข้อความใหม่)" : "สนทนา", () => Pairing.OpenBrowser(_server + "/chat")));
             _menu.Items.Add(Item("เปิดระบบงาน", () => Pairing.OpenBrowser(_server + "/")));
             _menu.Items.Add(Item("ตรวจสอบตอนนี้", () => _wake.Release()));
             _menu.Items.Add(Item("ทำเครื่องหมายว่าอ่านทั้งหมด", () => _ = MarkAllReadAsync(), _unread > 0));
@@ -311,7 +336,7 @@ internal sealed class TrayApp : ApplicationContext
     {
         var text = _token is null ? "EduTask: ยังไม่ได้เชื่อมต่อ"
             : _offline ? "EduTask: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้"
-            : $"EduTask: ยังไม่อ่าน {_unread} รายการ";
+            : $"EduTask: แจ้งเตือน {_unread} · ข้อความ {_unreadMessages}";
         _tray.Text = text.Length > 63 ? text[..63] : text;
 
         var color = _token is null || _offline ? Color.FromArgb(100, 116, 139) : Color.FromArgb(37, 99, 235);
@@ -323,7 +348,7 @@ internal sealed class TrayApp : ApplicationContext
             g.FillEllipse(fill, 1, 1, 30, 30);
             using var pen = new Pen(Color.White, 3.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
             g.DrawLines(pen, new[] { new PointF(9, 16), new PointF(14, 21), new PointF(23, 11) });
-            if (_token is not null && _unread > 0)
+            if (_token is not null && (_unread > 0 || _unreadMessages > 0))
             {
                 using var badge = new SolidBrush(Color.FromArgb(220, 38, 38));
                 g.FillEllipse(badge, 17, 0, 15, 15);

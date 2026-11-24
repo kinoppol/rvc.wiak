@@ -27,6 +27,7 @@ if ($user) {
     );
 }
 $editAlerts = $user ? TicketEdit::unseenFor((int) $user['id']) : [];
+$chatUnread = $user && \App\Models\Chat::ready() ? \App\Models\Chat::unreadTotal((int) $user['id']) : 0;
 $alertCount = count($alerts['urgent']) + count($alerts['warning']) + count($editAlerts);
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 ?><!doctype html>
@@ -89,6 +90,10 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         </a>
         <a class="side-link <?= $currentPath === Url::to('/calendar') ? 'active' : '' ?>" href="<?= Url::to('/calendar') ?>">
           <i class="bi bi-calendar3"></i><span class="flex-fill">ปฏิทินกำหนดส่งงาน</span>
+        </a>
+        <a class="side-link <?= str_starts_with($currentPath, Url::to('/chat')) ? 'active' : '' ?>" href="<?= Url::to('/chat') ?>">
+          <i class="bi bi-chat-dots"></i><span class="flex-fill">สนทนา</span>
+          <?php if ($chatUnread > 0): ?><span class="badge rounded-pill text-bg-danger" style="font-size:.64rem" aria-label="ข้อความยังไม่อ่าน <?= $chatUnread ?> ข้อความ"><?= $chatUnread > 99 ? '99+' : $chatUnread ?></span><?php endif; ?>
         </a>
         <a class="side-link <?= $currentPath === Url::to('/todos') ? 'active' : '' ?>" href="<?= Url::to('/todos') ?>">
           <i class="bi bi-list-check"></i><span class="flex-fill">งานส่วนตัว (To-Do)</span>

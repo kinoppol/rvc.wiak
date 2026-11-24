@@ -8,13 +8,15 @@ namespace EduTaskNotifier;
 internal sealed class InvalidTokenException : Exception;
 
 internal sealed record ApiUser(int Id, string FullName);
-internal sealed record TokenResponse(bool Ok, string Token, long Cursor, ApiUser User, int PollSeconds);
+internal sealed record TokenResponse(bool Ok, string Token, long Cursor, ApiUser User, int PollSeconds, long? MessageCursor);
+internal sealed record MessageItem(long Id, int ConversationId, ApiUser Sender, string Preview, string OpenPath);
 internal sealed record FeedTicket(int Id, string Code, string Title);
 internal sealed record FeedItem(long Id, string Type, string Heading, string Body, FeedTicket Ticket, string OpenPath);
 internal sealed record FeedSummary(int Urgent, int Warning, int Edits);
 internal sealed record FeedResponse(
     bool Ok, List<FeedItem> Items, long Cursor, bool HasMore, int Unread,
-    FeedSummary Summary, ApiUser User, int PollSeconds);
+    FeedSummary Summary, ApiUser User, int PollSeconds,
+    List<MessageItem>? Messages, long? MessageCursor, int UnreadMessages);
 
 internal sealed class ApiClient : IDisposable
 {
@@ -54,9 +56,12 @@ internal sealed class ApiClient : IDisposable
         return await ReadAsync<TokenResponse>(response, ct);
     }
 
-    public async Task<FeedResponse> PollAsync(string token, long after, CancellationToken ct)
+    /// <param name="afterMessage">null until the app has a chat cursor; the server then returns only the cursor.</param>
+    public async Task<FeedResponse> PollAsync(string token, long after, long? afterMessage, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_server}/api/desktop/notifications?after={after}&limit=50");
+        var url = $"{_server}/api/desktop/notifications?after={after}&limit=50"
+            + (afterMessage is { } m ? $"&after_message={m}" : "");
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         using var response = await _http.SendAsync(request, ct);
         return await ReadAsync<FeedResponse>(response, ct);
