@@ -683,6 +683,7 @@
       input.style.height = "auto";
       input.style.height = Math.min(input.scrollHeight, 160) + "px";
     };
+    grow();
     var send = function () {
       var body = input.value.trim();
       if (!body || busy) return;

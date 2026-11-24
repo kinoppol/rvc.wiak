@@ -79,7 +79,7 @@ $avatar = static function (?array $p, int $size = 40): string {
         <form class="chat-composer" data-chat-form action="/chat/<?= (int) $activeId ?>/messages">
           <div class="chat-suggest" data-chat-suggest role="listbox" hidden></div>
           <button type="button" class="btn btn-sm btn-outline-secondary" data-chat-hash title="อ้างถึงตั๋วงาน" aria-label="อ้างถึงตั๋วงาน"><i class="bi bi-hash"></i></button>
-          <textarea name="body" rows="1" class="form-control" data-chat-input maxlength="<?= Chat::MAX_BODY ?>" placeholder="พิมพ์ข้อความ… ใช้ # เพื่ออ้างถึงตั๋วงาน" aria-label="ข้อความ"></textarea>
+          <textarea name="body" rows="1" class="form-control" data-chat-input maxlength="<?= Chat::MAX_BODY ?>" placeholder="พิมพ์ข้อความ… (# อ้างถึงตั๋ว)" aria-label="ข้อความ"></textarea>
           <button type="submit" class="btn btn-primary" aria-label="ส่งข้อความ"><i class="bi bi-send-fill"></i></button>
         </form>
       <?php else: ?>
