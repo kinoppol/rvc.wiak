@@ -3,6 +3,10 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Pass the bearer token through to PHP under CGI/FPM (desktop API)
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
   # Serve real files and directories (assets, install.php, uploads download via app) as-is
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]

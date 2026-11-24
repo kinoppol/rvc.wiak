@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Request;
+use App\Models\DesktopDevice;
 use App\Models\Setting;
 use App\Models\User;
 
@@ -30,6 +31,7 @@ final class ProfileController extends Controller
             'defaultWarnDays' => max(1, (int) Setting::get('notify_warn_days_default', '3')),
             'urgentHours' => max(1, (int) Setting::get('notify_urgent_hours', '24')),
             'saved' => Request::str('saved') === '1',
+            'desktopDevices' => DesktopDevice::activeFor((int) $user['id']),
         ]);
     }
 

@@ -119,6 +119,16 @@
       openOverlay(res.text);
     });
   }
+  // Deep link from a desktop notification (/open/ticket/{id} → /?open_ticket={id}).
+  // The parameter is dropped so a reload doesn't reopen the ticket.
+  var deepLink = new URLSearchParams(location.search);
+  var deepLinkId = deepLink.get("open_ticket");
+  if (deepLinkId !== null) {
+    deepLink.delete("open_ticket");
+    var rest = deepLink.toString();
+    history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+    if (/^\d+$/.test(deepLinkId) && document.getElementById("overlay-root")) openTicket(deepLinkId);
+  }
   document.addEventListener("click", function (e) {
     var row = e.target.closest("[data-open-ticket]");
     if (row) openTicket(row.getAttribute("data-open-ticket"));
@@ -171,6 +181,54 @@
       refreshBoard();
       if (form.getAttribute("data-reload-on-success")) location.reload();
     });
+  });
+
+  // ---------- desktop installer upload (in chunks) ----------
+  document.addEventListener("submit", function (e) {
+    var form = e.target.closest("[data-release-upload]");
+    if (!form) return;
+    e.preventDefault();
+    var file = form.elements.file.files[0];
+    if (!file) return;
+    if (file.size > parseInt(form.getAttribute("data-max-bytes"), 10)) { alert("ไฟล์มีขนาดเกินที่กำหนด"); return; }
+    var chunkSize = parseInt(form.getAttribute("data-chunk-size"), 10);
+    var total = Math.max(1, Math.ceil(file.size / chunkSize));
+    var btn = form.querySelector('[type="submit"]');
+    var wrap = form.querySelector("[data-release-progress]");
+    var bar = wrap.querySelector(".progress-bar");
+    function progress(pct) {
+      bar.style.width = pct + "%";
+      bar.textContent = pct + "%";
+      wrap.firstElementChild.setAttribute("aria-valuenow", pct);
+    }
+    function stop(message) {
+      btn.disabled = false;
+      wrap.classList.add("d-none");
+      alert(message);
+    }
+    function send(i) {
+      var fd = new FormData();
+      fd.append("index", i);
+      fd.append("total", total);
+      fd.append("chunk", file.slice(i * chunkSize, (i + 1) * chunkSize), "chunk");
+      if (i === 0) {
+        fd.append("version", form.elements.version.value);
+        fd.append("notes", form.elements.notes.value);
+        fd.append("file_name", file.name);
+        fd.append("size", file.size);
+        fd.append("make_current", form.elements.make_current.checked ? "1" : "0");
+      }
+      postJson(form.getAttribute("action"), fd).then(function (res) {
+        if (!res.body.ok) { stop(res.body.error || "อัปโหลดไม่สำเร็จ"); return; }
+        progress(Math.round(((i + 1) / total) * 100));
+        if (res.body.done) { location.reload(); return; }
+        send(i + 1);
+      }).catch(function () { stop("การเชื่อมต่อขัดข้อง กรุณาอัปโหลดใหม่"); });
+    }
+    btn.disabled = true;
+    wrap.classList.remove("d-none");
+    progress(0);
+    send(0);
   });
 
   // ---------- todo overlay ----------

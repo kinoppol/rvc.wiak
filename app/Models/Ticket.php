@@ -69,6 +69,7 @@ final class Ticket
         ]);
         $id = (int) $pdo->lastInsertId();
         TicketTimeline::add($id, 'สร้างและมอบหมายตั๋วงาน' . ($isCross ? ' (ข้ามขั้น)' : ''), $data['from_user_id']);
+        Notification::ticketEvent((int) $data['to_user_id'], $id, Notification::NEW_TICKET, (int) $data['from_user_id']);
         return $id;
     }
 
@@ -347,6 +348,9 @@ final class Ticket
             'แก้ไขตั๋วงาน: ' . implode(', ', array_column($changes, 'label')) . ($notify ? ' (แจ้งผู้รับมอบหมายแล้ว)' : ''),
             $byUserId
         );
+        if ($notify) {
+            Notification::ticketEvent($notify, $id, Notification::EDITED, $byUserId);
+        }
         return $changes;
     }
 
@@ -362,6 +366,7 @@ final class Ticket
         $st->execute([$newToUserId, $isCross, $id]);
         $newTo = User::findById($newToUserId);
         TicketTimeline::add($id, 'มอบหมายต่อให้ ' . ($newTo['full_name'] ?? '#' . $newToUserId) . ($isCross ? ' (ข้ามขั้น)' : ''), $byUserId);
+        Notification::ticketEvent($newToUserId, $id, Notification::REASSIGNED, $byUserId);
         return true;
     }
 

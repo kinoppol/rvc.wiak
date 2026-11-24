@@ -89,6 +89,9 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
           <i class="bi bi-bell"></i><span class="flex-fill">การแจ้งเตือนของฉัน</span>
           <?php if ($alertCount > 0): ?><span class="badge rounded-pill text-bg-danger" style="font-size:.64rem"><?= $alertCount ?></span><?php endif; ?>
         </a>
+        <a class="side-link <?= $currentPath === Url::to('/desktop/download') ? 'active' : '' ?>" href="<?= Url::to('/desktop/download') ?>">
+          <i class="bi bi-download"></i><span class="flex-fill">ดาวน์โหลดแอป Windows</span>
+        </a>
         <?php if ($isAdmin): ?>
         <div style="color:#64748b;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;padding:10px 4px 6px">ผู้ดูแลระบบ</div>
         <a class="side-link <?= $currentPath === Url::to('/admin/users') ? 'active' : '' ?>" href="<?= Url::to('/admin/users') ?>">
@@ -102,6 +105,9 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         </a>
         <a class="side-link <?= $currentPath === Url::to('/admin/migrations') ? 'active' : '' ?>" href="<?= Url::to('/admin/migrations') ?>">
           <i class="bi bi-database-gear"></i><span class="flex-fill">Migration ฐานข้อมูล</span>
+        </a>
+        <a class="side-link <?= $currentPath === Url::to('/admin/desktop-releases') ? 'active' : '' ?>" href="<?= Url::to('/admin/desktop-releases') ?>">
+          <i class="bi bi-box-seam"></i><span class="flex-fill">ไฟล์ติดตั้งแอป</span>
         </a>
         <a class="side-link <?= $currentPath === Url::to('/admin/settings') ? 'active' : '' ?>" href="<?= Url::to('/admin/settings') ?>">
           <i class="bi bi-gear"></i><span class="flex-fill">ตั้งค่าระบบ</span>

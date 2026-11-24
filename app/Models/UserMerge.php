@@ -127,7 +127,10 @@ final class UserMerge
             if (in_array($ref['t'], ['user_roles', 'user_role_units'], true)) {
                 continue; // handled by moveRoles(); the rest cascade on delete
             }
-            $pdo->prepare("UPDATE `{$ref['t']}` SET `{$ref['c']}` = ? WHERE `{$ref['c']}` = ?")
+            // Both accounts may hold the same alert (UNIQUE user + dedupe key):
+            // keep the target's, and the source's copy cascades on delete.
+            $ignore = $ref['t'] === 'user_notifications' ? 'IGNORE ' : '';
+            $pdo->prepare("UPDATE {$ignore}`{$ref['t']}` SET `{$ref['c']}` = ? WHERE `{$ref['c']}` = ?")
                 ->execute([$targetId, $sourceId]);
         }
 

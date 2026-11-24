@@ -110,7 +110,7 @@ final class OaAuthController extends Controller
 
         Auth::login($user);
         AuditLog::record((int) $user['id'], (int) $user['id'], 'login.oa', 'user', (int) $user['id']);
-        $this->redirect('/');
+        $this->redirect(Auth::pullReturn());
     }
 
     /** Minimal standalone page — the callback runs outside the app layout. */

@@ -37,6 +37,20 @@ final class Auth
         unset($_SESSION['impersonating']);
     }
 
+    /** Where to land after login. Callers pass a path they built themselves. */
+    public static function rememberReturn(string $path): void
+    {
+        $_SESSION['return_to'] = $path;
+    }
+
+    /** The remembered path, once. Anything but a same-site path falls back to /. */
+    public static function pullReturn(): string
+    {
+        $path = (string) ($_SESSION['return_to'] ?? '');
+        unset($_SESSION['return_to']);
+        return preg_match('#^/(?![/\\\\])[^\r\n\\\\]*$#', $path) ? $path : '/';
+    }
+
     /** Keep this session valid when the account it points at was merged away. */
     public static function remapMergedUser(int $sourceId, int $targetId): void
     {

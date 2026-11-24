@@ -32,7 +32,7 @@ final class AuthController extends Controller
             return;
         }
         Auth::login($user);
-        $this->redirect('/');
+        $this->redirect(Auth::pullReturn());
     }
 
     public function logout(): void

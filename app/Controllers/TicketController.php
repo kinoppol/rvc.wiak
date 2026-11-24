@@ -10,6 +10,7 @@ use App\Core\Request;
 use App\Core\Upload;
 use App\Core\View;
 use App\Models\AuditLog;
+use App\Models\Notification;
 use App\Models\Picker;
 use App\Models\Role;
 use App\Models\Ticket;
@@ -37,6 +38,9 @@ final class TicketController extends Controller
         }
 
         Ticket::markOpenedIfNeeded($id, (int) $user['id']);
+        if (!Auth::isImpersonating()) {
+            Notification::markTicketRead($id, (int) $user['id']);
+        }
         $t = Ticket::find($id);
 
         $activeRole = Auth::activeRole() ?? 'staff';

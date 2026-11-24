@@ -8,6 +8,9 @@ use App\Controllers\AuthController;
 use App\Controllers\AvatarController;
 use App\Controllers\CalendarController;
 use App\Controllers\DashboardController;
+use App\Controllers\DesktopApiController;
+use App\Controllers\DesktopController;
+use App\Controllers\DesktopReleaseController;
 use App\Controllers\MigrationController;
 use App\Controllers\OaAuthController;
 use App\Controllers\OrgController;
@@ -35,6 +38,22 @@ $router->get('/auth/oa/start', [OaAuthController::class, 'start']);
 $router->get('/api/login.php', [OaAuthController::class, 'start']);
 $router->get('/api/callback.php', [OaAuthController::class, 'callback']);
 $router->post('/api/callback.php', [OaAuthController::class, 'callback']);
+
+// Windows desktop notifier: JSON API (bearer token, no session) and browser side.
+$router->post('/api/desktop/token', [DesktopApiController::class, 'token']);
+$router->get('/api/desktop/notifications', [DesktopApiController::class, 'notifications']);
+$router->post('/api/desktop/notifications/read', [DesktopApiController::class, 'markRead']);
+$router->post('/api/desktop/revoke', [DesktopApiController::class, 'revoke']);
+$router->get('/open/ticket/{id}', [DesktopController::class, 'openTicket']);
+$router->get('/desktop/pair', [DesktopController::class, 'pairForm']);
+$router->post('/desktop/pair', [DesktopController::class, 'pairApprove']);
+$router->post('/desktop/devices/{id}/revoke', [DesktopController::class, 'revokeDevice']);
+$router->get('/desktop/download', [DesktopReleaseController::class, 'downloadPage']);
+$router->get('/desktop/download/{id}', [DesktopReleaseController::class, 'download']);
+$router->get('/admin/desktop-releases', [DesktopReleaseController::class, 'index']);
+$router->post('/admin/desktop-releases/upload', [DesktopReleaseController::class, 'upload']);
+$router->post('/admin/desktop-releases/{id}/current', [DesktopReleaseController::class, 'makeCurrent']);
+$router->post('/admin/desktop-releases/{id}/delete', [DesktopReleaseController::class, 'delete']);
 
 $router->get('/', [DashboardController::class, 'index']);
 $router->get('/board', [DashboardController::class, 'board']);

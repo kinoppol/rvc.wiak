@@ -53,4 +53,26 @@ use App\Core\View;
       </ul>
     </div>
   </div>
+
+  <?php if ($desktopDevices): ?>
+    <div class="card border-0 shadow-sm mt-3" style="border-radius:14px">
+      <div class="card-body">
+        <div style="font-weight:600;font-size:.95rem;margin-bottom:8px"><i class="bi bi-window-desktop"></i> อุปกรณ์ที่เชื่อมต่อแอปแจ้งเตือน</div>
+        <?php foreach ($desktopDevices as $d): ?>
+          <div class="d-flex align-items-center justify-content-between gap-2 py-2 border-top">
+            <div style="font-size:.84rem;min-width:0">
+              <div class="text-truncate" style="font-weight:500"><?= View::e($d['name']) ?></div>
+              <div class="text-body-secondary" style="font-size:.74rem">
+                ใช้งานล่าสุด <?= $d['last_seen_at'] ? View::e(date('d/m/Y H:i', strtotime((string) $d['last_seen_at']))) : '—' ?>
+                <?= $d['app_version'] ? ' · v' . View::e($d['app_version']) : '' ?>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0"
+                    data-post="/desktop/devices/<?= (int) $d['id'] ?>/revoke"
+                    data-confirm="ยกเลิกการเชื่อมต่ออุปกรณ์นี้?" data-reload-on-success="1">ยกเลิกการเชื่อมต่อ</button>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  <?php endif; ?>
 </div>
