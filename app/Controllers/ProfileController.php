@@ -22,6 +22,25 @@ final class ProfileController extends Controller
         $this->json(['ok' => $ok]);
     }
 
+    /** Make the role currently selected in the sidebar the one used at sign-in. */
+    public function setPrimaryRole(): void
+    {
+        $user = $this->requireLogin();
+        Csrf::verifyRequestOrFail();
+        if (Auth::isImpersonating()) {
+            $this->json(['ok' => false, 'error' => 'ไม่สามารถตั้งบทบาทหลักระหว่างสวมสิทธิ์'], 403);
+        }
+        if (!array_key_exists('primary_role', $user)) {
+            $this->json(['ok' => false, 'error' => 'ระบบยังไม่พร้อม ผู้ดูแลระบบต้องรัน migration ก่อน'], 503);
+        }
+        $role = Auth::activeRole();
+        if ($role === null) {
+            $this->json(['ok' => false, 'error' => 'ไม่พบบทบาทที่เลือก'], 422);
+        }
+        User::setPrimaryRole((int) $user['id'], $role);
+        $this->json(['ok' => true]);
+    }
+
     public function preferences(): void
     {
         $user = $this->requireLogin();

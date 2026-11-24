@@ -66,15 +66,37 @@ final class Role
     /**
      * Cross-level assignment: from and to roles are both in the chain of
      * command and the assignment skips at least one level (e.g. director
-     * straight to staff instead of via deputy/dept -> supervisor).
+     * straight to staff instead of via deputy/dept -> supervisor), in either
+     * direction. Handing work to the level directly above is not a skip.
      */
     public static function isCrossLevel(string $fromCode, string $toCode): bool
     {
         $a = self::level($fromCode);
         $b = self::level($toCode);
         if ($a === null || $b === null) {
-            return $fromCode !== $toCode && ($fromCode === 'admin' || $toCode === 'admin') === false;
+            return false; // admin sits outside the chain of command
         }
-        return ($b - $a) > 1 || ($b - $a) < 0;
+        return abs($b - $a) > 1;
+    }
+
+    /**
+     * The assignee may hold several roles: the assignment is cross-level only
+     * if it skips a level to every one of them. Using just their highest role
+     * flagged work sent to a หัวหน้างาน who also happens to be ผอ.
+     *
+     * @param string[] $toCodes
+     */
+    public static function isCrossLevelToAny(string $fromCode, array $toCodes): bool
+    {
+        $chain = array_filter($toCodes, static fn ($code) => self::level($code) !== null);
+        if (!$chain) {
+            return false;
+        }
+        foreach ($chain as $code) {
+            if (!self::isCrossLevel($fromCode, $code)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

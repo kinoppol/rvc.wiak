@@ -33,6 +33,19 @@ final class User
         return array_column($st->fetchAll(), 'code');
     }
 
+    /** The role to select at sign-in: their chosen one while they still hold it. */
+    public static function defaultRole(array $user): ?string
+    {
+        $roles = self::rolesFor((int) $user['id']);
+        $primary = $user['primary_role'] ?? null;
+        return in_array($primary, $roles, true) ? $primary : ($roles[0] ?? null);
+    }
+
+    public static function setPrimaryRole(int $userId, string $role): void
+    {
+        Database::pdo()->prepare('UPDATE users SET primary_role = ? WHERE id = ?')->execute([$role, $userId]);
+    }
+
     /** @return array<int,array> all active users with their role codes, for the impersonation picker */
     public static function allWithRoles(): array
     {

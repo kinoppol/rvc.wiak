@@ -57,6 +57,10 @@ final class UserMerge
                 $source['email'], $source['department'], $source['avatar_path'],
                 $source['notify_warn_days'], $source['oa_user_id'], $targetId,
             ]);
+            if (array_key_exists('primary_role', $source)) {
+                $pdo->prepare('UPDATE users SET primary_role = COALESCE(primary_role, ?) WHERE id = ?')
+                    ->execute([$source['primary_role'], $targetId]);
+            }
             if ($targetNid === '' && $sourceNid !== '') {
                 User::stampNationalId($target, $sourceNid);
             }

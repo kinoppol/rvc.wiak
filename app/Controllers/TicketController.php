@@ -115,7 +115,7 @@ final class TicketController extends Controller
             'priority' => $priority,
             'due_at' => $dueRaw !== '' ? date('Y-m-d H:i:s', strtotime($dueRaw)) : null,
             'from_role' => Auth::activeRole() ?? 'staff',
-            'to_role' => $toRoles[0] ?? 'staff',
+            'to_roles' => $toRoles,
         ]);
 
         AuditLog::record((int) Auth::realUser()['id'], Auth::isImpersonating() ? (int) $user['id'] : null, 'ticket.create', 'ticket', $id);
@@ -395,7 +395,7 @@ final class TicketController extends Controller
             $this->json(['ok' => false, 'error' => 'ไม่พบผู้รับมอบหมายที่เลือก'], 422);
         }
         $toRoles = User::rolesFor($newToUserId);
-        Ticket::reassign((int) $t['id'], $newToUserId, $toRoles[0] ?? 'staff', (int) $user['id']);
+        Ticket::reassign((int) $t['id'], $newToUserId, $toRoles, (int) $user['id']);
         $this->json(['ok' => true]);
     }
 

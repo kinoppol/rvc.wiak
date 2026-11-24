@@ -72,6 +72,7 @@ $router->post('/todos/{id}/miss', [TodoController::class, 'markMiss']);
 $router->post('/todos/{id}/delete', [TodoController::class, 'delete']);
 
 $router->post('/role-switch', [ProfileController::class, 'switchRole']);
+$router->post('/role-primary', [ProfileController::class, 'setPrimaryRole']);
 $router->get('/preferences', [ProfileController::class, 'preferences']);
 $router->post('/preferences', [ProfileController::class, 'updatePreferences']);
 

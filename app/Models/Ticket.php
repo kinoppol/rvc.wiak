@@ -57,7 +57,7 @@ final class Ticket
     {
         $pdo = Database::pdo();
         $code = self::generateCode();
-        $isCross = Role::isCrossLevel($data['from_role'], $data['to_role']) ? 1 : 0;
+        $isCross = Role::isCrossLevelToAny($data['from_role'], $data['to_roles']) ? 1 : 0;
         $st = $pdo->prepare(
             'INSERT INTO tickets (code, title, meta, description, from_user_id, to_user_id, status, priority, is_cross, due_at, created_at)
              VALUES (?,?,?,?,?,?,?,?,?,?, NOW())'
@@ -354,14 +354,15 @@ final class Ticket
         return $changes;
     }
 
-    public static function reassign(int $id, int $newToUserId, string $toRole, int $byUserId): bool
+    /** @param string[] $toRoles every role the new assignee holds */
+    public static function reassign(int $id, int $newToUserId, array $toRoles, int $byUserId): bool
     {
         $t = self::find($id);
         if (!$t) {
             return false;
         }
         $fromRole = $_SESSION['active_role'] ?? 'staff';
-        $isCross = Role::isCrossLevel($fromRole, $toRole) ? 1 : 0;
+        $isCross = Role::isCrossLevelToAny($fromRole, $toRoles) ? 1 : 0;
         $st = Database::pdo()->prepare('UPDATE tickets SET to_user_id = ?, is_cross = ?, opened_at = NULL, ack_at = NULL, doing_at = NULL, status = "new" WHERE id = ?');
         $st->execute([$newToUserId, $isCross, $id]);
         $newTo = User::findById($newToUserId);

@@ -67,6 +67,14 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
             <option value="<?= View::e($rc) ?>" <?= $rc === $activeRole ? 'selected' : '' ?>><?= View::e($r['label']) ?></option>
           <?php endforeach; ?>
         </select>
+        <?php if (count($roles) > 1 && array_key_exists('primary_role', $user) && !Auth::isImpersonating()): ?>
+          <?php if ($activeRole === User::defaultRole($user)): ?>
+            <div class="pt-2" style="color:#fcd34d;font-size:.74rem"><i class="bi bi-star-fill"></i> บทบาทหลักเมื่อเข้าสู่ระบบ</div>
+          <?php else: ?>
+            <button type="button" class="btn btn-sm btn-link p-0 pt-2 text-decoration-none" style="color:#cbd5e1;font-size:.74rem"
+                    data-post="/role-primary" data-reload-on-success="1"><i class="bi bi-star"></i> ตั้งเป็นบทบาทหลัก</button>
+          <?php endif; ?>
+        <?php endif; ?>
         <div class="d-flex flex-wrap gap-1 pt-2">
           <?php foreach ($roles as $rc): $r = $allRoles[$rc] ?? null; if (!$r) { continue; } ?>
             <span class="badge rounded-pill" style="background:<?= View::e($r['chip_bg']) ?>;color:<?= View::e($r['chip_fg']) ?>;font-weight:500;font-size:.66rem"><i class="bi bi-<?= View::e($r['icon']) ?>"></i> <?= View::e($r['short_label']) ?></span>

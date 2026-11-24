@@ -32,8 +32,7 @@ final class Auth
         session_regenerate_id(true);
         $_SESSION['real_user_id'] = (int) $user['id'];
         $_SESSION['user_id'] = (int) $user['id'];
-        $roles = User::rolesFor((int) $user['id']);
-        $_SESSION['active_role'] = $roles[0] ?? null;
+        $_SESSION['active_role'] = User::defaultRole($user);
         unset($_SESSION['impersonating']);
     }
 
@@ -80,7 +79,8 @@ final class Auth
         if ($role && in_array($role, $roles, true)) {
             return $role;
         }
-        return $roles[0] ?? null;
+        $user = self::user();
+        return $user ? User::defaultRole($user) : null;
     }
 
     public static function setActiveRole(string $role): bool
@@ -109,8 +109,7 @@ final class Auth
         }
         $_SESSION['user_id'] = $targetUserId;
         $_SESSION['impersonating'] = true;
-        $roles = User::rolesFor($targetUserId);
-        $_SESSION['active_role'] = $roles[0] ?? null;
+        $_SESSION['active_role'] = User::defaultRole($target);
         AuditLog::record((int) $real['id'], $targetUserId, 'impersonate.start', 'user', $targetUserId);
         return true;
     }
@@ -122,8 +121,7 @@ final class Auth
         if ($real) {
             $_SESSION['user_id'] = (int) $real['id'];
             unset($_SESSION['impersonating']);
-            $roles = User::rolesFor((int) $real['id']);
-            $_SESSION['active_role'] = $roles[0] ?? null;
+            $_SESSION['active_role'] = User::defaultRole($real);
             if ($impersonated) {
                 AuditLog::record((int) $real['id'], (int) $impersonated['id'], 'impersonate.stop', 'user', (int) $impersonated['id']);
             }
