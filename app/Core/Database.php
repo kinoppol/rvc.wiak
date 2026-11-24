@@ -32,6 +32,9 @@ final class Database
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
+                    // NOW() must agree with PHP's clock even on a UTC server.
+                    // A numeric offset works without MariaDB's named-zone tables.
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone = '" . date('P') . "'",
                 ]);
             } catch (PDOException $e) {
                 throw new PDOException('ไม่สามารถเชื่อมต่อฐานข้อมูลได้: ' . $e->getMessage(), (int) $e->getCode());

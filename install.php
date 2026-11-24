@@ -111,7 +111,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['do_reinstall'])) {
                     throw new RuntimeException('ไม่พบข้อมูลการเชื่อมต่อฐานข้อมูล กรุณาย้อนกลับไปขั้นตอนที่ 2');
                 }
                 $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $db['host'], $db['port'], $db['name']);
-                $pdo = new PDO($dsn, $db['user'], $db['pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                $pdo = new PDO($dsn, $db['user'], $db['pass'], [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone = '+07:00'",
+                ]);
 
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $ins = $pdo->prepare('INSERT INTO users (username, password_hash, full_name, email, icon) VALUES (?,?,?,?,?)');
