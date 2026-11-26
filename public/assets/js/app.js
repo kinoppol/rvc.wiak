@@ -647,6 +647,22 @@
     });
   });
 
+  // [data-open-template="id"] copies a server-rendered <template id="id"> into
+  // #overlay-root — for modals whose content is already on the page (e.g. the
+  // "add meeting room" form), so no extra fragment request is needed.
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-open-template]");
+    if (!el) return;
+    var tpl = document.getElementById(el.getAttribute("data-open-template"));
+    if (!tpl || !tpl.content) return;
+    e.preventDefault();
+    var host = document.getElementById("overlay-root");
+    host.innerHTML = "";
+    host.appendChild(tpl.content.cloneNode(true));
+    var first = host.querySelector("input:not([type=hidden]), textarea, select");
+    if (first) first.focus();
+  });
+
   // ---------- meeting-room booking form ----------
   // Only the chosen room's equipment is offered; the other rooms' boxes are
   // hidden and disabled so they never post.

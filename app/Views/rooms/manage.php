@@ -73,6 +73,7 @@ $roomForm = function (?array $r) use ($equipment): string {
           <label class="form-check-label" for="room-active-<?= $id ?>">เปิดให้จอง</label>
         </div>
         <div class="flex-fill"></div>
+        <?php if ($isNew): ?><button type="button" class="btn btn-sm btn-outline-secondary" data-close-overlay>ยกเลิก</button><?php endif; ?>
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-<?= $isNew ? 'plus-lg' : 'save' ?>"></i> <?= $isNew ? 'เพิ่มห้อง' : 'บันทึก' ?></button>
       </div>
     </form>
@@ -88,8 +89,17 @@ $roomForm = function (?array $r) use ($equipment): string {
 </div>
 
 <div class="card border-0 shadow-sm" style="border-radius:14px">
-  <div class="card-header bg-transparent" style="padding:12px 18px;font-weight:600;font-size:.9rem"><i class="bi bi-door-open"></i> ห้องประชุม (<?= count($rooms) ?>)</div>
+  <div class="card-header bg-transparent d-flex align-items-center gap-2" style="padding:10px 18px">
+    <div style="font-weight:600;font-size:.9rem" class="flex-fill"><i class="bi bi-door-open"></i> ห้องประชุม (<?= count($rooms) ?>)</div>
+    <button type="button" class="btn btn-sm btn-primary" data-open-template="room-add-modal"><i class="bi bi-plus-lg"></i> เพิ่มห้องประชุม</button>
+  </div>
   <div class="list-group list-group-flush">
+    <?php if (!$rooms): ?>
+      <div class="list-group-item text-center text-body-secondary" style="padding:28px 18px;font-size:.85rem">
+        <i class="bi bi-door-closed" style="font-size:1.6rem"></i>
+        <div class="mt-1">ยังไม่มีห้องประชุม — กดปุ่ม "เพิ่มห้องประชุม" เพื่อเริ่มต้น</div>
+      </div>
+    <?php endif; ?>
     <?php foreach ($rooms as $r): ?>
       <div class="list-group-item" id="room-<?= (int) $r['id'] ?>" style="padding:10px 18px">
         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -112,12 +122,23 @@ $roomForm = function (?array $r) use ($equipment): string {
         </div>
       </div>
     <?php endforeach; ?>
-    <div class="list-group-item" style="padding:12px 18px;background:var(--bs-tertiary-bg)">
-      <div style="font-weight:600;font-size:.84rem" class="mb-2"><i class="bi bi-plus-circle"></i> เพิ่มห้องประชุม</div>
-      <?= $roomForm(null) ?>
-    </div>
   </div>
 </div>
+
+<template id="room-add-modal">
+  <div class="modal-overlay">
+    <div class="card border-0 shadow-lg" style="width:min(760px,100%);border-radius:14px;max-height:92vh;overflow-y:auto">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-plus-circle" style="font-size:1.2rem;color:#1e3a8a"></i>
+          <div style="font-weight:600" class="flex-fill">เพิ่มห้องประชุม</div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-close-overlay title="ปิด"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <?= $roomForm(null) ?>
+      </div>
+    </div>
+  </div>
+</template>
 
 <div class="row g-3">
   <div class="col-lg-6">
