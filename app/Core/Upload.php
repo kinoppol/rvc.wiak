@@ -27,17 +27,39 @@ final class Upload
      */
     public static function store(array $file, int $ticketId): array
     {
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            return ['ok' => false, 'error' => 'อัปโหลดไฟล์ล้มเหลว (รหัส ' . ($file['error'] ?? '?') . ')'];
+        return self::storeIn($file, (string) $ticketId);
+    }
+
+    /** Why an uploaded file can't be accepted, or null if it can. */
+    public static function check(array $file): ?string
+    {
+        if ((int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return in_array((int) ($file['error'] ?? 0), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
+                ? 'ไฟล์ "' . ($file['name'] ?? '') . '" มีขนาดเกินที่กำหนด (สูงสุด ' . self::humanSize(self::maxBytes()) . ')'
+                : 'อัปโหลดไฟล์ล้มเหลว (รหัส ' . ($file['error'] ?? '?') . ')';
         }
         if (!is_uploaded_file($file['tmp_name'])) {
-            return ['ok' => false, 'error' => 'ไฟล์ที่อัปโหลดไม่ถูกต้อง'];
+            return 'ไฟล์ที่อัปโหลดไม่ถูกต้อง';
         }
         if ($file['size'] > self::maxBytes()) {
-            return ['ok' => false, 'error' => 'ไฟล์มีขนาดเกินที่กำหนด (สูงสุด ' . self::humanSize(self::maxBytes()) . ')'];
+            return 'ไฟล์ "' . $file['name'] . '" มีขนาดเกินที่กำหนด (สูงสุด ' . self::humanSize(self::maxBytes()) . ')';
+        }
+        return null;
+    }
+
+    /**
+     * Store an upload under {uploads}/{$subdir}/ with a random filename.
+     *
+     * @return array{ok:bool,error?:string,storedPath?:string,mime?:string,size?:int,name?:string}
+     */
+    public static function storeIn(array $file, string $subdirName): array
+    {
+        if (($error = self::check($file)) !== null) {
+            return ['ok' => false, 'error' => $error];
         }
 
-        $subdir = self::dir() . '/' . $ticketId;
+        $subdirName = trim($subdirName, '/');
+        $subdir = self::dir() . '/' . $subdirName;
         if (!is_dir($subdir) && !mkdir($subdir, 0755, true) && !is_dir($subdir)) {
             return ['ok' => false, 'error' => 'ไม่สามารถสร้างโฟลเดอร์จัดเก็บไฟล์ได้'];
         }
@@ -56,7 +78,7 @@ final class Upload
 
         return [
             'ok' => true,
-            'storedPath' => $ticketId . '/' . $stored,
+            'storedPath' => $subdirName . '/' . $stored,
             'mime' => $mime,
             'size' => (int) $file['size'],
             'name' => $original,

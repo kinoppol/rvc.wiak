@@ -26,11 +26,14 @@ $list = function (array $rows, bool $showUser, string $empty) use ($today): stri
               · <i class="bi bi-calendar-event"></i> <?= View::e(RoomBooking::rangeLabel($b)) ?>
               <?php if ($showUser): ?> · <i class="bi bi-person"></i> <?= View::e($b['user_name']) ?><?php endif; ?>
             </div>
-            <?php if ($b['equipment']): ?>
+            <?php if ($b['equipment'] || ($b['graphic_request'] ?? null) !== null): ?>
               <div class="d-flex flex-wrap gap-1 mt-1">
                 <?php foreach ($b['equipment'] as $e): ?>
                   <span class="badge rounded-pill text-bg-light border" style="font-size:.64rem;font-weight:500"><i class="bi bi-<?= View::e($e['icon']) ?>"></i> <?= View::e($e['name']) ?></span>
                 <?php endforeach; ?>
+                <?php if (($b['graphic_request'] ?? null) !== null): ?>
+                  <span class="badge rounded-pill text-bg-warning" style="font-size:.64rem;font-weight:500"><i class="bi bi-easel"></i> ป้ายโครงการ</span>
+                <?php endif; ?>
               </div>
             <?php endif; ?>
           </div>

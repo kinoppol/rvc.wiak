@@ -8,6 +8,8 @@ use App\Models\RoomBooking;
 /** @var bool $isApprover */
 /** @var array $clashes other pending/approved bookings overlapping this one */
 /** @var array|null $room */
+/** @var bool $canSeeGraphic requester/room user or approver */
+/** @var array $files sign-graphic reference files */
 
 [$stLabel, $stBg, $stFg, $stIcon] = RoomBooking::STATUS[$b['status']];
 $active = in_array($b['status'], ['pending', 'approved'], true);
@@ -60,6 +62,36 @@ $row = fn(string $icon, string $label, string $value) =>
           <?= $row('chat-left-text', 'หมายเหตุ', nl2br(View::e($b['decision_note']))) ?>
         <?php endif; ?>
       </div>
+
+      <?php if (($b['graphic_request'] ?? null) !== null): ?>
+        <div class="mt-3 p-3 border rounded-3" style="font-size:.84rem">
+          <div style="font-weight:600" class="mb-1"><i class="bi bi-easel"></i> ขอให้ทำภาพกราฟิกป้ายโครงการ</div>
+          <?php if ($canSeeGraphic): ?>
+            <div style="white-space:pre-wrap"><?= View::e($b['graphic_request']) ?></div>
+            <?php if ($files): ?>
+              <div class="d-flex flex-column gap-1 mt-2">
+                <?php foreach ($files as $f): ?>
+                  <?php
+                    [$fIcon, $fColor] = \App\Core\Upload::iconFor((string) $f['mime'], $f['name']);
+                    $fUrl = Url::to('/rooms/bookings/' . (int) $b['id'] . '/files/' . (int) $f['id']);
+                    $preview = in_array((string) $f['mime'], \App\Models\TicketFile::PREVIEW_MIMES, true);
+                  ?>
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-<?= $fIcon ?>" style="color:<?= $fColor ?>"></i>
+                    <a href="<?= $fUrl ?><?= $preview ? '?inline=1' : '' ?>" <?= $preview ? 'target="_blank" rel="noopener"' : '' ?> class="text-truncate"><?= View::e($f['name']) ?></a>
+                    <span class="text-body-secondary" style="font-size:.74rem"><?= View::e(\App\Core\Upload::humanSize((int) $f['size'])) ?></span>
+                    <a href="<?= $fUrl ?>" class="ms-auto text-body-secondary" title="ดาวน์โหลด"><i class="bi bi-download"></i></a>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php else: ?>
+              <div class="text-body-secondary mt-1" style="font-size:.78rem">ไม่มีไฟล์แนบ</div>
+            <?php endif; ?>
+          <?php else: ?>
+            <div class="text-body-secondary" style="font-size:.78rem">รายละเอียดดูได้เฉพาะผู้ขอและผู้อนุมัติ</div>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
 
       <?php if ($clashes && $active): ?>
         <div class="alert alert-warning mt-3 mb-0" style="font-size:.8rem;padding:8px 12px">

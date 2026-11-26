@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Request;
+use App\Core\Upload;
 use App\Core\View;
 use App\Models\AuditLog;
 use App\Models\OrgUnit;
@@ -14,6 +15,7 @@ use App\Models\Picker;
 use App\Models\Room;
 use App\Models\RoomBooking;
 use App\Models\Setting;
+use App\Models\TicketFile;
 use App\Models\User;
 use DateTimeImmutable;
 
@@ -154,38 +156,40 @@ final class RoomController extends Controller
 
     public function newForm(): void
     {
-        $this->requireReady();
+        $user = $this->requireReady();
+        $uid = (int) $user['id'];
+        $isApprover = RoomBooking::isApprover($uid);
         $rooms = Room::all(true);
         $date = Request::str('date');
-        if (!DateTimeImmutable::createFromFormat('!Y-m-d', $date) || $date < date('Y-m-d')) {
+        // Approvers may record past use, so they may open the form on a past day.
+        if (!DateTimeImmutable::createFromFormat('!Y-m-d', $date) || (!$isApprover && $date < date('Y-m-d'))) {
             $date = date('Y-m-d');
         }
         $start = Request::str('start');
         if (!preg_match('/^([01]\d|2[0-3]):00$/', $start)) {
             $start = '09:00';
         }
-        $startAt = new DateTimeImmutable($date . ' ' . $start);
+        // Bookings run in whole hours (RoomBooking::FIRST_HOUR … LAST_HOUR).
+        $startH = (int) substr($start, 0, 2);
         $now = new DateTimeImmutable();
-        if ($startAt < $now) {
-            // The current hour's slot (or "today" with the default 09:00) is
-            // already under way: start at the next quarter hour instead.
-            $min = (int) $now->format('i');
-            $startAt = $now->setTime((int) $now->format('G'), 0)->modify('+' . (intdiv($min, 15) + 1) * 15 . ' minutes');
-            if ($startAt->format('Y-m-d') !== $date) {
-                $startAt = new DateTimeImmutable($date . ' 23:00');
-            }
+        if (!$isApprover && new DateTimeImmutable($date . ' ' . $start) < $now) {
+            // The slot (or "today" with the default 09:00) is already under
+            // way: start at the next whole hour instead.
+            $startH = (int) $now->format('G') + 1;
         }
-        $endAt = $startAt->modify('+1 hour');
-        if ($endAt->format('Y-m-d') !== $date) {
-            $endAt = new DateTimeImmutable($date . ' 23:59');
-        }
+        $startH = max(RoomBooking::FIRST_HOUR, min(RoomBooking::LAST_HOUR - 1, $startH));
+
         $this->html(View::render('partials/room_booking_form', [
             'rooms' => $rooms,
             'roomId' => Request::int('room'),
             'date' => $date,
-            'start' => $startAt->format('H:i'),
-            'end' => $endAt->format('H:i'),
+            'start' => sprintf('%02d:00', $startH),
+            'end' => sprintf('%02d:00', $startH + 1),
             'approvers' => RoomBooking::approvers(),
+            'isApprover' => $isApprover,
+            'user' => $user,
+            'personItems' => $isApprover ? Picker::people() : [],
+            'graphicsReady' => RoomBooking::graphicsReady(),
         ]));
     }
 
@@ -193,13 +197,128 @@ final class RoomController extends Controller
     {
         $user = $this->requireReady();
         Csrf::verifyRequestOrFail();
+        $uid = (int) $user['id'];
+        $isApprover = RoomBooking::isApprover($uid);
 
-        $v = RoomBooking::validate($_POST, Room::all(true));
+        $v = RoomBooking::validate($_POST, Room::all(true), $isApprover);
         if (is_string($v)) {
             $this->json(['ok' => false, 'error' => $v]);
         }
-        $id = RoomBooking::create((int) $user['id'], $v);
+
+        // An approver may record the booking for someone else (the person
+        // who actually used / will use the room).
+        $forId = $uid;
+        if ($isApprover && Request::int('for_user_id') > 0) {
+            $for = User::findById(Request::int('for_user_id'));
+            if (!$for || !(int) $for['is_active']) {
+                $this->json(['ok' => false, 'error' => 'กรุณาเลือกผู้ใช้ห้องจากรายการ']);
+            }
+            $forId = (int) $for['id'];
+        }
+
+        // Sign-graphic reference files: checked up front so a bad file
+        // refuses the whole request instead of leaving it half-saved.
+        $files = $v['graphic_request'] !== null ? $this->uploadedFiles('graphic_files') : [];
+        if (count($files) > RoomBooking::MAX_GRAPHIC_FILES) {
+            $this->json(['ok' => false, 'error' => 'แนบไฟล์ได้ไม่เกิน ' . RoomBooking::MAX_GRAPHIC_FILES . ' ไฟล์']);
+        }
+        foreach ($files as $file) {
+            if (($error = Upload::check($file)) !== null) {
+                $this->json(['ok' => false, 'error' => $error]);
+            }
+        }
+
+        $id = RoomBooking::create($forId, $v);
+
+        $stored = [];
+        foreach ($files as $file) {
+            $s = Upload::storeIn($file, RoomBooking::fileDir($id));
+            if (!$s['ok']) {
+                foreach ($stored as $path) {
+                    @unlink(Upload::absolutePath($path));
+                }
+                RoomBooking::delete($id);
+                $this->json(['ok' => false, 'error' => $s['error'] ?? 'อัปโหลดไฟล์ล้มเหลว']);
+            }
+            $stored[] = $s['storedPath'];
+            RoomBooking::addFile($id, $s, $uid);
+        }
+
+        // What an approver records is approved at once — there is nobody
+        // else to ask. approve() re-checks clashes under a room lock.
+        if ($isApprover) {
+            $error = RoomBooking::approve($id, $uid, null);
+            if ($error !== null) {
+                foreach ($stored as $path) {
+                    @unlink(Upload::absolutePath($path));
+                }
+                RoomBooking::delete($id);
+                $this->json(['ok' => false, 'error' => $error]);
+            }
+            [$actor, $as] = $this->actorIds();
+            $b = RoomBooking::find($id);
+            AuditLog::record($actor, $as, 'room_booking.record', 'room_booking', $id,
+                $b['room_name'] . ' · ' . RoomBooking::rangeLabel($b) . ($forId !== $uid ? ' · ผู้ใช้ห้อง ' . $b['user_name'] : ''));
+        }
         $this->json(['ok' => true, 'id' => $id]);
+    }
+
+    /** @return array<int,array> the non-empty entries of a multiple file input, one array per file */
+    private function uploadedFiles(string $key): array
+    {
+        $f = $_FILES[$key] ?? null;
+        if (!$f || !is_array($f['name'] ?? null)) {
+            return [];
+        }
+        $out = [];
+        for ($i = 0, $n = count($f['name']); $i < $n; $i++) {
+            if ((int) ($f['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+            $out[] = [
+                'name' => (string) $f['name'][$i],
+                'type' => $f['type'][$i] ?? '',
+                'tmp_name' => $f['tmp_name'][$i] ?? '',
+                'error' => (int) ($f['error'][$i] ?? UPLOAD_ERR_NO_FILE),
+                'size' => (int) ($f['size'][$i] ?? 0),
+            ];
+        }
+        return $out;
+    }
+
+    /** A sign-graphic reference file — for the requester, the room user and approvers. */
+    public function downloadFile(array $args): void
+    {
+        $user = $this->requireReady();
+        $b = RoomBooking::find((int) $args['id']);
+        $f = RoomBooking::findFile((int) $args['fileId']);
+        if (!$b || !$f || (int) $f['booking_id'] !== (int) $b['id']) {
+            http_response_code(404);
+            exit;
+        }
+        if (!$this->canSeeGraphic($b, (int) $user['id'])) {
+            http_response_code(403);
+            exit;
+        }
+        $path = Upload::absolutePath($f['stored_path']);
+        if (!is_file($path)) {
+            http_response_code(404);
+            exit;
+        }
+        $inline = Request::str('inline') === '1' && in_array((string) $f['mime'], TicketFile::PREVIEW_MIMES, true);
+        $ascii = preg_replace('/[^A-Za-z0-9._-]+/', '_', $f['name']) ?: 'file';
+        header('Content-Type: ' . ($f['mime'] ?: 'application/octet-stream'));
+        header('X-Content-Type-Options: nosniff');
+        header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment')
+            . '; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($f['name']));
+        header('Content-Length: ' . (string) filesize($path));
+        readfile($path);
+        exit;
+    }
+
+    private function canSeeGraphic(array $b, int $uid): bool
+    {
+        return (int) $b['user_id'] === $uid || RoomBooking::isApprover($uid);
     }
 
     public function show(array $args): void
@@ -222,6 +341,8 @@ final class RoomController extends Controller
             'isApprover' => $isApprover,
             'clashes' => $clashes,
             'room' => Room::find((int) $b['room_id']),
+            'canSeeGraphic' => $this->canSeeGraphic($b, $uid),
+            'files' => RoomBooking::files((int) $b['id']),
         ]));
     }
 
@@ -359,6 +480,11 @@ final class RoomController extends Controller
             $color = Room::COLORS[0];
         }
         $capacity = Request::int('capacity');
+        $isActive = Request::str('is_active') === '1';
+        $inactiveReason = mb_substr(trim(Request::str('inactive_reason')), 0, 255);
+        if (!$isActive && $inactiveReason === '' && Room::hasInactiveReason()) {
+            $this->redirect('/rooms/manage?error=' . rawurlencode('กรุณาระบุสาเหตุที่ปิดการใช้งานห้อง "' . $name . '"') . ($id ? '#room-' . $id : ''));
+        }
 
         $types = Room::equipmentTypes();
         $qty = (array) ($_POST['qty'] ?? []);
@@ -376,7 +502,8 @@ final class RoomController extends Controller
             'capacity' => $capacity > 0 ? min($capacity, 65535) : null,
             'description' => trim(Request::str('description')),
             'color' => strtolower($color),
-            'is_active' => Request::str('is_active') === '1',
+            'is_active' => $isActive,
+            'inactive_reason' => $inactiveReason,
             'sort_order' => Request::int('sort_order'),
         ], $equipment);
 

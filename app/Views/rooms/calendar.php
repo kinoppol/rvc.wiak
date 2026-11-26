@@ -64,11 +64,11 @@ $newUrl = fn(string $date, ?string $start = null) => '/rooms/bookings/new?date='
        class="badge rounded-pill text-decoration-none <?= $roomId === 0 ? 'text-bg-primary' : 'text-bg-light border' ?>"
        style="font-size:.72rem;font-weight:500;padding:5px 11px">ทุกห้อง</a>
     <?php foreach ($rooms as $r): ?>
-      <?php if (!(int) $r['is_active'] && (int) $r['id'] !== $roomId) { continue; } ?>
       <a href="<?= $link($mode, $anchor->format('Y-m-d'), (int) $r['id']) ?>"
          class="badge rounded-pill text-decoration-none <?= $roomId === (int) $r['id'] ? 'text-bg-primary' : 'text-bg-light border' ?>"
-         style="font-size:.72rem;font-weight:500;padding:5px 11px">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:<?= View::e($r['color']) ?>;margin-right:3px"></span><?= View::e($r['name']) ?>
+         style="font-size:.72rem;font-weight:500;padding:5px 11px;<?= (int) $r['is_active'] ? '' : 'opacity:.65' ?>"
+         <?= (int) $r['is_active'] ? '' : 'title="ปิดใช้งาน' . (!empty($r['inactive_reason']) ? ': ' . View::e($r['inactive_reason']) : '') . '"' ?>>
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:<?= View::e($r['color']) ?>;margin-right:3px"></span><?= View::e($r['name']) ?><?= (int) $r['is_active'] ? '' : ' <i class="bi bi-slash-circle"></i>' ?>
       </a>
     <?php endforeach; ?>
     <div class="flex-fill"></div>
@@ -228,13 +228,16 @@ $newUrl = fn(string $date, ?string $start = null) => '/rooms/bookings/new?date='
   <div class="card-body">
     <div class="row g-2">
       <?php foreach ($rooms as $r): ?>
-        <?php if (!(int) $r['is_active']) { continue; } ?>
         <div class="col-12 col-md-6 col-xl-4">
           <div style="border:1px solid var(--bs-border-color);border-left:4px solid <?= View::e($r['color']) ?>;border-radius:10px;padding:10px 12px;height:100%">
             <div class="d-flex align-items-center gap-2">
               <div style="font-weight:600;font-size:.88rem" class="flex-fill"><?= View::e($r['name']) ?></div>
+              <?php if (!(int) $r['is_active']): ?><span class="badge text-bg-secondary" style="font-size:.66rem"><i class="bi bi-slash-circle"></i> ปิดใช้งาน</span><?php endif; ?>
               <?php if ($r['capacity']): ?><span class="badge text-bg-light border" style="font-size:.66rem"><i class="bi bi-people"></i> <?= (int) $r['capacity'] ?> คน</span><?php endif; ?>
             </div>
+            <?php if (!(int) $r['is_active']): ?>
+              <div class="text-danger" style="font-size:.74rem"><i class="bi bi-info-circle"></i> งดรับคำขอใช้ห้อง<?= !empty($r['inactive_reason']) ? ': ' . View::e($r['inactive_reason']) : '' ?></div>
+            <?php endif; ?>
             <?php if ($r['location']): ?><div class="text-body-secondary" style="font-size:.74rem"><i class="bi bi-geo-alt"></i> <?= View::e($r['location']) ?></div><?php endif; ?>
             <div class="d-flex flex-wrap gap-1 mt-2">
               <?php foreach ($r['equipment'] as $e): ?>

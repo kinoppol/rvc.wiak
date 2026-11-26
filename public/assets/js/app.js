@@ -677,6 +677,30 @@
       });
       return;
     }
+    // Times are whole hours ("HH:00"). Moving the start to or past the end
+    // pushes the end to one hour after the start.
+    var startTime = e.target.closest("[data-room-start-time]");
+    if (startTime) {
+      var endSel = startTime.closest("form").querySelector("[data-room-end-time]");
+      if (endSel && endSel.value <= startTime.value) {
+        var h = Math.min(parseInt(startTime.value, 10) + 1, 23);
+        endSel.value = (h < 10 ? "0" : "") + h + ":00";
+      }
+      return;
+    }
+    // The sign-graphic section posts (and its details are required) only
+    // while its checkbox is ticked.
+    var graphic = e.target.closest("[data-room-graphic-toggle]");
+    if (graphic) {
+      var box = graphic.closest("form").querySelector("[data-room-graphic]");
+      if (box) {
+        box.hidden = !graphic.checked;
+        box.querySelectorAll("input, textarea").forEach(function (i) { i.disabled = !graphic.checked; });
+        var ta = box.querySelector("textarea");
+        if (ta) { ta.required = graphic.checked; if (graphic.checked) ta.focus(); }
+      }
+      return;
+    }
     var start = e.target.closest("[data-room-start-date]");
     if (start) {
       var end = start.closest("form").querySelector("[data-room-end-date]");

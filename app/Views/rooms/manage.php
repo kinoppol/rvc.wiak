@@ -75,6 +75,10 @@ $roomForm = function (?array $r) use ($equipment): string {
           <input class="form-check-input" type="checkbox" name="is_active" value="1" id="room-active-<?= $id ?>" <?= ($r === null || (int) $r['is_active']) ? 'checked' : '' ?>>
           <label class="form-check-label" for="room-active-<?= $id ?>">เปิดให้จอง</label>
         </div>
+        <?php if (Room::hasInactiveReason()): ?>
+          <input type="text" name="inactive_reason" class="form-control form-control-sm" style="max-width:300px" maxlength="255"
+                 value="<?= View::e($r['inactive_reason'] ?? '') ?>" placeholder="สาเหตุที่ปิดการใช้งาน (จำเป็นเมื่อปิดให้จอง)">
+        <?php endif; ?>
         <div class="flex-fill"></div>
         <?php if ($isNew): ?><button type="button" class="btn btn-sm btn-outline-secondary" data-close-overlay>ยกเลิก</button><?php endif; ?>
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-<?= $isNew ? 'plus-lg' : 'save' ?>"></i> <?= $isNew ? 'เพิ่มห้อง' : 'บันทึก' ?></button>
@@ -108,7 +112,7 @@ $roomForm = function (?array $r) use ($equipment): string {
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <span style="width:12px;height:12px;border-radius:50%;background:<?= View::e($r['color']) ?>"></span>
           <div style="font-weight:600;font-size:.88rem"><?= View::e($r['name']) ?></div>
-          <?php if (!(int) $r['is_active']): ?><span class="badge text-bg-secondary" style="font-size:.64rem">ปิดการจอง</span><?php endif; ?>
+          <?php if (!(int) $r['is_active']): ?><span class="badge text-bg-secondary" style="font-size:.64rem">ปิดการจอง</span><?php if (!empty($r['inactive_reason'])): ?><span class="text-danger" style="font-size:.74rem">— <?= View::e($r['inactive_reason']) ?></span><?php endif; ?><?php endif; ?>
           <span class="text-body-secondary" style="font-size:.76rem">
             <?= $r['location'] ? View::e($r['location']) . ' · ' : '' ?><?= $r['capacity'] ? (int) $r['capacity'] . ' คน · ' : '' ?>
             <?= $r['equipment'] ? View::e(implode(', ', array_map(fn($e) => $e['name'] . ((int) $e['quantity'] > 1 ? ' ×' . (int) $e['quantity'] : ''), $r['equipment']))) : 'ไม่มีอุปกรณ์สื่อ' ?>

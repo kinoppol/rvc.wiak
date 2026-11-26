@@ -44,6 +44,27 @@ final class RoomBooking
         return $ready;
     }
 
+    /** Bookings run in whole hours: the earliest start and the latest end hour offered. */
+    public const FIRST_HOUR = 0;
+    public const LAST_HOUR = 23;
+
+    /** Most reference files one sign-graphic request may carry. */
+    public const MAX_GRAPHIC_FILES = 10;
+
+    /**
+     * The project-sign graphic request (room_bookings.graphic_request and
+     * room_booking_files) arrives by migration 20261126_add_room_graphic_request.sql,
+     * which adds the column before the table — so the table existing means both do.
+     */
+    public static function graphicsReady(): bool
+    {
+        static $ready = null;
+        if ($ready === null) {
+            $ready = (bool) Database::pdo()->query("SHOW TABLES LIKE 'room_booking_files'")->fetchColumn();
+        }
+        return $ready;
+    }
+
     // ------------------------------------------------------------------ approvers
 
     /**
@@ -294,7 +315,7 @@ final class RoomBooking
      *
      * @return array|string
      */
-    public static function validate(array $in, array $rooms): array|string
+    public static function validate(array $in, array $rooms, bool $mayBackdate = false): array|string
     {
         $roomId = (int) ($in['room_id'] ?? 0);
         $room = $rooms[$roomId] ?? null;
@@ -328,10 +349,15 @@ final class RoomBooking
         if (!$startTime || !$endTime) {
             return 'กรุณาระบุเวลาที่ขอใช้ให้ถูกต้อง';
         }
+        if (substr($startTime, 3, 2) !== '00' || substr($endTime, 3, 2) !== '00') {
+            return 'เวลาเริ่มและเวลาสิ้นสุดต้องเป็นชั่วโมงเต็ม (นาที 00)';
+        }
         if ($endTime <= $startTime) {
             return 'เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น';
         }
-        if (new DateTimeImmutable($startDate . ' ' . $startTime) < new DateTimeImmutable('-5 minutes')) {
+        // Approvers may record a booking after the fact (the room was used
+        // without a request); everyone else asks ahead.
+        if (!$mayBackdate && new DateTimeImmutable($startDate . ' ' . $startTime) < new DateTimeImmutable('-5 minutes')) {
             return 'ไม่สามารถขอใช้ห้องย้อนหลังได้';
         }
 
@@ -353,6 +379,17 @@ final class RoomBooking
             $equipment[$eid] = $eid;
         }
 
+        $graphic = null;
+        if (self::graphicsReady() && ($in['graphic'] ?? '') === '1') {
+            $graphic = trim(str_replace("\r\n", "\n", (string) ($in['graphic_request'] ?? '')));
+            if ($graphic === '') {
+                return 'กรุณาระบุรายละเอียดป้ายโครงการที่ต้องการให้ทำภาพกราฟิก';
+            }
+            if (mb_strlen($graphic) > 2000) {
+                return 'รายละเอียดป้ายโครงการยาวเกินไป (ไม่เกิน 2,000 ตัวอักษร)';
+            }
+        }
+
         $clash = self::clashes($roomId, $startDate, $endDate, $startTime, $endTime);
         if ($clash) {
             $c = $clash[0];
@@ -370,6 +407,7 @@ final class RoomBooking
             'start_time' => $startTime,
             'end_time' => $endTime,
             'equipment' => array_values($equipment),
+            'graphic_request' => $graphic,
         ];
     }
 
@@ -386,6 +424,9 @@ final class RoomBooking
                 $v['start_date'], $v['end_date'], $v['start_time'], $v['end_time'],
             ]);
             $id = (int) $pdo->lastInsertId();
+            if (($v['graphic_request'] ?? null) !== null) {
+                $pdo->prepare('UPDATE room_bookings SET graphic_request = ? WHERE id = ?')->execute([$v['graphic_request'], $id]);
+            }
             $ins = $pdo->prepare('INSERT INTO room_booking_equipment (booking_id, equipment_id) VALUES (?,?)');
             foreach ($v['equipment'] as $eid) {
                 $ins->execute([$id, $eid]);
@@ -396,6 +437,52 @@ final class RoomBooking
             throw $e;
         }
         return $id;
+    }
+
+    /**
+     * Remove a request outright. Only for undoing a create whose attached
+     * files then failed to save; anything a person did goes through cancel().
+     */
+    public static function delete(int $id): void
+    {
+        Database::pdo()->prepare('DELETE FROM room_bookings WHERE id = ?')->execute([$id]);
+    }
+
+    // ------------------------------------------------------------------ sign-graphic files
+
+    /** @return array<int,array> files attached to a booking's sign-graphic request, oldest first */
+    public static function files(int $bookingId): array
+    {
+        if (!self::graphicsReady()) {
+            return [];
+        }
+        $st = Database::pdo()->prepare('SELECT * FROM room_booking_files WHERE booking_id = ? ORDER BY id');
+        $st->execute([$bookingId]);
+        return $st->fetchAll();
+    }
+
+    public static function findFile(int $fileId): ?array
+    {
+        if (!self::graphicsReady()) {
+            return null;
+        }
+        $st = Database::pdo()->prepare('SELECT * FROM room_booking_files WHERE id = ? LIMIT 1');
+        $st->execute([$fileId]);
+        return $st->fetch() ?: null;
+    }
+
+    /** @param array{storedPath:string,mime:string,size:int,name:string} $stored from Upload::storeIn */
+    public static function addFile(int $bookingId, array $stored, int $userId): void
+    {
+        Database::pdo()->prepare(
+            'INSERT INTO room_booking_files (booking_id, name, stored_path, mime, size, uploaded_by) VALUES (?,?,?,?,?,?)'
+        )->execute([$bookingId, mb_substr($stored['name'], 0, 255), $stored['storedPath'], mb_substr($stored['mime'], 0, 150), $stored['size'], $userId]);
+    }
+
+    /** Where a booking's files are kept, relative to the uploads directory. */
+    public static function fileDir(int $bookingId): string
+    {
+        return 'room-bookings/' . $bookingId;
     }
 
     /**

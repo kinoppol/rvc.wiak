@@ -78,6 +78,7 @@ $router->get('/rooms/requests', [RoomController::class, 'requests']);
 $router->get('/rooms/bookings/new', [RoomController::class, 'newForm']);
 $router->post('/rooms/bookings', [RoomController::class, 'store']);
 $router->get('/rooms/bookings/{id}', [RoomController::class, 'show']);
+$router->get('/rooms/bookings/{id}/files/{fileId}', [RoomController::class, 'downloadFile']);
 $router->post('/rooms/bookings/{id}/approve', [RoomController::class, 'approve']);
 $router->post('/rooms/bookings/{id}/reject', [RoomController::class, 'reject']);
 $router->post('/rooms/bookings/{id}/cancel', [RoomController::class, 'cancel']);

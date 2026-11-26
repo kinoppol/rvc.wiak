@@ -373,6 +373,7 @@ CREATE TABLE IF NOT EXISTS meeting_rooms (
     description TEXT NULL,
     color       VARCHAR(16) NOT NULL DEFAULT '#2563eb',
     is_active   TINYINT(1) NOT NULL DEFAULT 1,
+    inactive_reason VARCHAR(255) NULL,
     sort_order  INT NOT NULL DEFAULT 0,
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -403,6 +404,7 @@ CREATE TABLE IF NOT EXISTS room_bookings (
     user_id       INT UNSIGNED NOT NULL,
     purpose       VARCHAR(255) NOT NULL,
     details       TEXT NULL,
+    graphic_request TEXT NULL,
     attendees     SMALLINT UNSIGNED NULL,
     start_date    DATE NOT NULL,
     end_date      DATE NOT NULL,
@@ -429,6 +431,22 @@ CREATE TABLE IF NOT EXISTS room_booking_equipment (
     PRIMARY KEY (booking_id, equipment_id),
     CONSTRAINT fk_rbe_booking FOREIGN KEY (booking_id) REFERENCES room_bookings(id) ON DELETE CASCADE,
     CONSTRAINT fk_rbe_equipment FOREIGN KEY (equipment_id) REFERENCES room_equipment(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Reference files for a booking's project-sign graphic request (room_bookings.graphic_request).
+CREATE TABLE IF NOT EXISTS room_booking_files (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    booking_id  INT UNSIGNED NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    stored_path VARCHAR(255) NOT NULL,
+    mime        VARCHAR(150) NOT NULL DEFAULT 'application/octet-stream',
+    size        INT UNSIGNED NOT NULL DEFAULT 0,
+    uploaded_by INT UNSIGNED NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_rbf_booking (booking_id),
+    CONSTRAINT fk_rbf_booking FOREIGN KEY (booking_id) REFERENCES room_bookings(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rbf_user FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- People an admin names as approvers for every room (on top of the media งาน).

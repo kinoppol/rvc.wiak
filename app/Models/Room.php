@@ -22,6 +22,19 @@ final class Room
         'plug' => 'ปลั๊กไฟ', 'tools' => 'อื่น ๆ',
     ];
 
+    /**
+     * meeting_rooms.inactive_reason (why a room is closed to new requests)
+     * arrives by migration 20261126_add_room_graphic_request.sql.
+     */
+    public static function hasInactiveReason(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = (bool) Database::pdo()->query("SHOW COLUMNS FROM meeting_rooms LIKE 'inactive_reason'")->fetchColumn();
+        }
+        return $has;
+    }
+
     /** @return array<int,array> rooms keyed by id, each with an `equipment` list */
     public static function all(bool $activeOnly = false): array
     {
@@ -98,6 +111,11 @@ final class Room
                     'UPDATE meeting_rooms SET name=?, location=?, capacity=?, description=?, color=?, is_active=?, sort_order=?
                      WHERE id=?'
                 )->execute($values);
+            }
+
+            if (self::hasInactiveReason()) {
+                $pdo->prepare('UPDATE meeting_rooms SET inactive_reason = ? WHERE id = ?')
+                    ->execute([$data['is_active'] ? null : (($data['inactive_reason'] ?? '') ?: null), $id]);
             }
 
             $pdo->prepare('DELETE FROM meeting_room_equipment WHERE room_id = ?')->execute([$id]);
