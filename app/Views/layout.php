@@ -5,6 +5,7 @@ use App\Core\Csrf;
 use App\Core\Url;
 use App\Core\View;
 use App\Models\Role;
+use App\Models\RoomBooking;
 use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketEdit;
@@ -28,6 +29,9 @@ if ($user) {
 }
 $editAlerts = $user ? TicketEdit::unseenFor((int) $user['id']) : [];
 $alertCount = count($alerts['urgent']) + count($alerts['warning']) + count($editAlerts);
+$roomsReady = $user && RoomBooking::ready();
+$roomApprover = $roomsReady && RoomBooking::isApprover((int) $user['id']);
+$roomPending = $roomApprover ? RoomBooking::pendingCount() : 0;
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 ?><!doctype html>
 <html lang="th">
@@ -90,6 +94,18 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
         <a class="side-link <?= $currentPath === Url::to('/calendar') ? 'active' : '' ?>" href="<?= Url::to('/calendar') ?>">
           <i class="bi bi-calendar3"></i><span class="flex-fill">ปฏิทินกำหนดส่งงาน</span>
         </a>
+        <a class="side-link <?= $currentPath === Url::to('/rooms') ? 'active' : '' ?>" href="<?= Url::to('/rooms') ?>">
+          <i class="bi bi-door-open"></i><span class="flex-fill">จองห้องประชุม</span>
+        </a>
+        <a class="side-link <?= $currentPath === Url::to('/rooms/requests') ? 'active' : '' ?>" href="<?= Url::to('/rooms/requests') . ($roomPending > 0 ? '#pending' : '') ?>">
+          <i class="bi bi-card-checklist"></i><span class="flex-fill"><?= $roomApprover ? 'คำขอใช้ห้อง / อนุมัติ' : 'คำขอใช้ห้องของฉัน' ?></span>
+          <?php if ($roomPending > 0): ?><span class="badge rounded-pill text-bg-warning" style="font-size:.64rem" title="รออนุมัติ"><?= $roomPending ?></span><?php endif; ?>
+        </a>
+        <?php if ($roomApprover): ?>
+        <a class="side-link <?= $currentPath === Url::to('/rooms/manage') ? 'active' : '' ?>" href="<?= Url::to('/rooms/manage') ?>">
+          <i class="bi bi-sliders"></i><span class="flex-fill">จัดการห้องประชุม</span>
+        </a>
+        <?php endif; ?>
         <a class="side-link <?= $currentPath === Url::to('/todos') ? 'active' : '' ?>" href="<?= Url::to('/todos') ?>">
           <i class="bi bi-list-check"></i><span class="flex-fill">งานส่วนตัว (To-Do)</span>
         </a>

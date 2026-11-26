@@ -337,3 +337,14 @@ body::before {
 [data-bs-theme="dark"] .combo-tag-chain, [data-bs-theme="dark"] .org-people { background: rgba(96, 165, 250, .18); color: #93c5fd; }
 [data-bs-theme="dark"] .combo-tag-unit { background: rgba(52, 211, 153, .18); color: #6ee7b7; }
 [data-bs-theme="dark"] .org-people.is-empty { background: var(--bs-tertiary-bg); color: var(--bs-secondary-color); }
+
+/* meeting-room booking */
+.room-slot.open { cursor: pointer; }
+.room-slot.open:hover { background: rgba(37, 99, 235, .08); }
+.room-slot.open:hover::after { content: "+"; position: absolute; right: 6px; top: 2px; font-size: .8rem; color: #2563eb; }
+.room-day .room-day-add { opacity: 0; transition: opacity .15s; }
+.room-day:hover .room-day-add { opacity: 1; }
+@media (hover: none) { .room-day .room-day-add { opacity: 1; } }
+.room-color-dot { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; box-shadow: 0 0 0 1px var(--bs-border-color); }
+.room-color-input:checked + .room-color-dot { border-color: var(--bs-body-bg); box-shadow: 0 0 0 2px var(--bs-body-color); }
+[data-room-equip][hidden] { display: none !important; }

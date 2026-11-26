@@ -632,4 +632,42 @@
       landed.scrollIntoView({ block: "center" });
     }
   }
+  // ---------- generic "open a partial in the overlay" ----------
+  // [data-open-url="/app/relative/path"] fetches the fragment into #overlay-root
+  // (used by the meeting-room calendar, booking detail and request form).
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-open-url]");
+    if (!el) return;
+    e.preventDefault();
+    fetchHtml(el.getAttribute("data-open-url")).then(function (res) {
+      if (res.ok) { openOverlay(res.text); return; }
+      var msg = "เกิดข้อผิดพลาด";
+      try { msg = JSON.parse(res.text).error || msg; } catch (err) {}
+      alert(msg);
+    });
+  });
+
+  // ---------- meeting-room booking form ----------
+  // Only the chosen room's equipment is offered; the other rooms' boxes are
+  // hidden and disabled so they never post.
+  document.addEventListener("change", function (e) {
+    var sel = e.target.closest("[data-room-select]");
+    if (sel) {
+      var form = sel.closest("form");
+      form.querySelectorAll("[data-room-equip]").forEach(function (box) {
+        var on = box.getAttribute("data-room-equip") === sel.value;
+        box.hidden = !on;
+        box.querySelectorAll("input").forEach(function (i) { i.disabled = !on; if (!on) i.checked = false; });
+      });
+      return;
+    }
+    var start = e.target.closest("[data-room-start-date]");
+    if (start) {
+      var end = start.closest("form").querySelector("[data-room-end-date]");
+      if (end) {
+        end.min = start.value;
+        if (!end.value || end.value < start.value) end.value = start.value;
+      }
+    }
+  });
 })();

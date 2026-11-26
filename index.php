@@ -16,6 +16,7 @@ use App\Controllers\OaAuthController;
 use App\Controllers\OrgController;
 use App\Controllers\OrgImportController;
 use App\Controllers\ProfileController;
+use App\Controllers\RoomController;
 use App\Controllers\SettingsController;
 use App\Controllers\TicketController;
 use App\Controllers\TodoController;
@@ -70,6 +71,24 @@ $router->post('/todos/{id}', [TodoController::class, 'update']);
 $router->post('/todos/{id}/done', [TodoController::class, 'markDone']);
 $router->post('/todos/{id}/miss', [TodoController::class, 'markMiss']);
 $router->post('/todos/{id}/delete', [TodoController::class, 'delete']);
+
+// Meeting-room booking (RoomBooking::isApprover gates approve/reject and /rooms/manage).
+$router->get('/rooms', [RoomController::class, 'index']);
+$router->get('/rooms/requests', [RoomController::class, 'requests']);
+$router->get('/rooms/bookings/new', [RoomController::class, 'newForm']);
+$router->post('/rooms/bookings', [RoomController::class, 'store']);
+$router->get('/rooms/bookings/{id}', [RoomController::class, 'show']);
+$router->post('/rooms/bookings/{id}/approve', [RoomController::class, 'approve']);
+$router->post('/rooms/bookings/{id}/reject', [RoomController::class, 'reject']);
+$router->post('/rooms/bookings/{id}/cancel', [RoomController::class, 'cancel']);
+$router->get('/rooms/manage', [RoomController::class, 'manage']);
+$router->post('/rooms/manage/rooms', [RoomController::class, 'saveRoom']);
+$router->post('/rooms/manage/rooms/{id}', [RoomController::class, 'saveRoom']);
+$router->post('/rooms/manage/rooms/{id}/delete', [RoomController::class, 'deleteRoom']);
+$router->post('/rooms/manage/equipment', [RoomController::class, 'saveEquipment']);
+$router->post('/rooms/manage/equipment/{id}', [RoomController::class, 'saveEquipment']);
+$router->post('/rooms/manage/equipment/{id}/delete', [RoomController::class, 'deleteEquipment']);
+$router->post('/rooms/manage/media-work', [RoomController::class, 'setMediaWork']);
 
 $router->post('/role-switch', [ProfileController::class, 'switchRole']);
 $router->post('/role-primary', [ProfileController::class, 'setPrimaryRole']);
