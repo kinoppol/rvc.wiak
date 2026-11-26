@@ -10,6 +10,7 @@ use App\Core\Request;
 use App\Core\View;
 use App\Models\AuditLog;
 use App\Models\OrgUnit;
+use App\Models\Picker;
 use App\Models\Room;
 use App\Models\RoomBooking;
 use App\Models\Setting;
@@ -18,7 +19,7 @@ use DateTimeImmutable;
 
 /**
  * Meeting-room booking. Any signed-in user may request a room; the request
- * takes effect only once an approver (หัวหน้างาน/เจ้าหน้าที่ of the media
+ * takes effect only once an approver (a named approver, หัวหน้างาน/เจ้าหน้าที่ of the media
  * งาน, or an admin — see RoomBooking::isApprover) approves it. Approvers
  * also maintain the rooms and their equipment on /rooms/manage.
  */
@@ -50,7 +51,7 @@ final class RoomController extends Controller
         $user = $this->requireReady();
         if (!RoomBooking::isApprover((int) $user['id'])) {
             if (Request::isAjax() || Request::method() === 'POST') {
-                $this->json(['ok' => false, 'error' => 'เฉพาะหัวหน้างาน/เจ้าหน้าที่งานสื่อเท่านั้น'], 403);
+                $this->json(['ok' => false, 'error' => 'เฉพาะผู้อนุมัติการใช้ห้องประชุมเท่านั้น'], 403);
             }
             $this->redirect('/rooms');
         }
@@ -313,15 +314,25 @@ final class RoomController extends Controller
     public function manage(): void
     {
         $this->requireApprover();
+        $isAdmin = $this->isAdmin();
+        $named = RoomBooking::namedApprovers();
+        $personItems = [];
+        if ($isAdmin && RoomBooking::namedApproversReady()) {
+            $namedIds = array_flip(array_map('strval', array_column($named, 'id')));
+            $personItems = array_values(array_filter(Picker::people(), static fn ($p) => !isset($namedIds[$p['v']])));
+        }
         $this->page('rooms/manage', [
             'pageTitle' => 'จัดการห้องประชุม',
             'rooms' => Room::all(),
             'equipment' => Room::equipmentTypes(),
-            'isAdmin' => $this->isAdmin(),
+            'isAdmin' => $isAdmin,
             'works' => OrgUnit::all('work'),
             'mediaWorkId' => RoomBooking::mediaWorkId(),
             'mediaGuessed' => RoomBooking::mediaWorkIsGuessed(),
-            'approvers' => RoomBooking::approvers(),
+            'approvers' => RoomBooking::mediaWorkApprovers(),
+            'namedReady' => RoomBooking::namedApproversReady(),
+            'namedApprovers' => $named,
+            'personItems' => $personItems,
             'notice' => Request::str('notice'),
             'error' => Request::str('error'),
         ]);
@@ -449,5 +460,48 @@ final class RoomController extends Controller
         [$actor, $as] = $this->actorIds();
         AuditLog::record($actor, $as, 'room.media_work', 'work', $workId ?: null, null);
         $this->redirect('/rooms/manage?notice=' . rawurlencode('บันทึกงานผู้อนุมัติแล้ว') . '#approvers');
+    }
+
+    /**
+     * Name a person as an approver for every room — admins only, since an
+     * approver could otherwise hand the right on to anyone.
+     */
+    public function addApprover(): void
+    {
+        $this->requireReady();
+        if (!$this->isAdmin()) {
+            $this->redirect('/rooms');
+        }
+        Csrf::verifyRequestOrFail();
+        if (!RoomBooking::namedApproversReady()) {
+            $this->redirect('/rooms/manage?error=' . rawurlencode('ต้องรัน migration 20261126_add_room_approvers.sql ก่อน') . '#approvers');
+        }
+        $target = User::findById(Request::int('user_id'));
+        if (!$target || !(int) $target['is_active']) {
+            $this->redirect('/rooms/manage?error=' . rawurlencode('กรุณาเลือกบุคคลจากรายการ') . '#approvers');
+        }
+        [$actor, $as] = $this->actorIds();
+        if (!RoomBooking::addNamedApprover((int) $target['id'], $actor)) {
+            $this->redirect('/rooms/manage?notice=' . rawurlencode($target['full_name'] . ' เป็นผู้อนุมัติอยู่แล้ว') . '#approvers');
+        }
+        AuditLog::record($actor, $as, 'room.approver_add', 'user', (int) $target['id'], $target['full_name']);
+        $this->redirect('/rooms/manage?notice=' . rawurlencode('เพิ่ม ' . $target['full_name'] . ' เป็นผู้อนุมัติแล้ว') . '#approvers');
+    }
+
+    public function removeApprover(array $args): void
+    {
+        $this->requireReady();
+        if (!$this->isAdmin()) {
+            $this->redirect('/rooms');
+        }
+        Csrf::verifyRequestOrFail();
+        $target = User::findById((int) $args['id']);
+        $name = $target['full_name'] ?? ('#' . (int) $args['id']);
+        if (!RoomBooking::namedApproversReady() || !RoomBooking::removeNamedApprover((int) $args['id'])) {
+            $this->redirect('/rooms/manage?error=' . rawurlencode('ไม่พบผู้อนุมัติที่เลือก') . '#approvers');
+        }
+        [$actor, $as] = $this->actorIds();
+        AuditLog::record($actor, $as, 'room.approver_remove', 'user', (int) $args['id'], $name);
+        $this->redirect('/rooms/manage?notice=' . rawurlencode('นำ ' . $name . ' ออกจากผู้อนุมัติแล้ว') . '#approvers');
     }
 }

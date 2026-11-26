@@ -9,7 +9,10 @@ use App\Models\Room;
 /** @var array $works */
 /** @var int|null $mediaWorkId */
 /** @var bool $mediaGuessed */
-/** @var array $approvers */
+/** @var array $approvers      media งาน's หัวหน้างาน/เจ้าหน้าที่ */
+/** @var bool  $namedReady     room_approvers table exists */
+/** @var array $namedApprovers people named to approve every room */
+/** @var array $personItems    combo items for adding one (admins only) */
 /** @var string $notice */
 /** @var string $error */
 
@@ -184,7 +187,43 @@ $roomForm = function (?array $r) use ($equipment): string {
     <div class="card border-0 shadow-sm h-100" style="border-radius:14px" id="approvers">
       <div class="card-header bg-transparent" style="padding:12px 18px;font-weight:600;font-size:.9rem"><i class="bi bi-person-check"></i> ผู้อนุมัติการจอง</div>
       <div class="card-body d-flex flex-column gap-2" style="font-size:.84rem">
-        <div class="text-body-secondary" style="font-size:.78rem">หัวหน้างานและเจ้าหน้าที่ของงานที่เลือกอนุมัติคำขอได้ รวมถึงผู้ดูแลระบบ</div>
+        <div class="text-body-secondary" style="font-size:.78rem">ผู้ดูแลระบบ บุคคลที่กำหนดด้านล่าง และหัวหน้างาน/เจ้าหน้าที่ของงานที่เลือก อนุมัติคำขอใช้ได้ทุกห้อง</div>
+
+        <div style="font-weight:600;font-size:.82rem" class="mt-1"><i class="bi bi-person-plus"></i> บุคคลที่อนุมัติได้ทุกห้อง</div>
+        <?php if (!$namedReady): ?>
+          <div class="text-body-secondary" style="font-size:.78rem">ต้องรัน migration <code>20261126_add_room_approvers.sql</code> ที่หน้า "Migration ฐานข้อมูล" ก่อน</div>
+        <?php else: ?>
+          <?php if ($namedApprovers): ?>
+            <div class="d-flex flex-column gap-1">
+              <?php foreach ($namedApprovers as $a): ?>
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-person"></i>
+                  <span class="flex-fill"><?= View::e($a['full_name']) ?><?= (int) $a['is_active'] ? '' : ' <span class="badge text-bg-secondary" style="font-size:.64rem">บัญชีปิดใช้งาน</span>' ?></span>
+                  <?php if ($isAdmin): ?>
+                    <form method="post" action="<?= Url::to('/rooms/manage/approvers/' . (int) $a['id'] . '/delete') ?>" onsubmit="return confirm('นำ <?= View::e(addslashes($a['full_name'])) ?> ออกจากผู้อนุมัติ?')">
+                      <?= Csrf::field() ?>
+                      <button type="submit" class="btn btn-sm btn-outline-danger py-0" title="นำออก"><i class="bi bi-x-lg"></i></button>
+                    </form>
+                  <?php endif; ?>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php else: ?>
+            <div class="text-body-secondary" style="font-size:.78rem">ยังไม่ได้กำหนดบุคคล</div>
+          <?php endif; ?>
+          <?php if ($isAdmin): ?>
+            <form method="post" action="<?= Url::to('/rooms/manage/approvers') ?>" class="d-flex gap-2 align-items-start">
+              <?= Csrf::field() ?>
+              <div class="flex-fill">
+                <?= View::render('partials/combo', ['name' => '', 'valueName' => 'user_id', 'items' => $personItems, 'placeholder' => 'พิมพ์ชื่อ บทบาท หรือหน่วยงาน เพื่อค้นหา…', 'required' => true]) ?>
+              </div>
+              <button type="submit" class="btn btn-sm btn-primary text-nowrap"><i class="bi bi-plus-lg"></i> เพิ่ม</button>
+            </form>
+          <?php endif; ?>
+        <?php endif; ?>
+
+        <hr class="my-1">
+        <div style="font-weight:600;font-size:.82rem"><i class="bi bi-diagram-3"></i> งานผู้อนุมัติ</div>
         <?php if ($isAdmin): ?>
           <form method="post" action="<?= Url::to('/rooms/manage/media-work') ?>" class="d-flex gap-2">
             <?= Csrf::field() ?>
@@ -206,7 +245,7 @@ $roomForm = function (?array $r) use ($equipment): string {
           <?php if ($workName): ?>
             <b><?= View::e($workName) ?></b><?= $mediaGuessed ? ' <span class="text-body-secondary">(ระบบเลือกให้อัตโนมัติ)</span>' : '' ?>
           <?php else: ?>
-            <span class="text-danger">ยังไม่ได้กำหนด — ตอนนี้มีเพียงผู้ดูแลระบบที่อนุมัติได้</span>
+            <span class="text-danger">ยังไม่ได้กำหนด<?= $namedApprovers ? '' : ' — ตอนนี้มีเพียงผู้ดูแลระบบที่อนุมัติได้' ?></span>
           <?php endif; ?>
         </div>
         <?php if ($approvers): ?>

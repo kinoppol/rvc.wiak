@@ -362,8 +362,8 @@ CREATE TABLE IF NOT EXISTS todo_logs (
 
 -- ---------------------------------------------------------------------
 -- Meeting-room booking (RoomController). A booking takes effect only once
--- a หัวหน้างาน/เจ้าหน้าที่ of the media งาน (setting room_media_work_id) or
--- an admin approves it. Equipment is seeded at the bottom of this file.
+-- a หัวหน้างาน/เจ้าหน้าที่ of the media งาน (setting room_media_work_id), a
+-- person named in room_approvers, or an admin approves it. Equipment is seeded at the bottom of this file.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS meeting_rooms (
     id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -429,6 +429,16 @@ CREATE TABLE IF NOT EXISTS room_booking_equipment (
     PRIMARY KEY (booking_id, equipment_id),
     CONSTRAINT fk_rbe_booking FOREIGN KEY (booking_id) REFERENCES room_bookings(id) ON DELETE CASCADE,
     CONSTRAINT fk_rbe_equipment FOREIGN KEY (equipment_id) REFERENCES room_equipment(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- People an admin names as approvers for every room (on top of the media งาน).
+CREATE TABLE IF NOT EXISTS room_approvers (
+    user_id    INT UNSIGNED NOT NULL,
+    added_by   INT UNSIGNED NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_ra_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ra_added_by FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------

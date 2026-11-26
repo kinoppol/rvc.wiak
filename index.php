@@ -89,6 +89,8 @@ $router->post('/rooms/manage/equipment', [RoomController::class, 'saveEquipment'
 $router->post('/rooms/manage/equipment/{id}', [RoomController::class, 'saveEquipment']);
 $router->post('/rooms/manage/equipment/{id}/delete', [RoomController::class, 'deleteEquipment']);
 $router->post('/rooms/manage/media-work', [RoomController::class, 'setMediaWork']);
+$router->post('/rooms/manage/approvers', [RoomController::class, 'addApprover']);
+$router->post('/rooms/manage/approvers/{id}/delete', [RoomController::class, 'removeApprover']);
 
 $router->post('/role-switch', [ProfileController::class, 'switchRole']);
 $router->post('/role-primary', [ProfileController::class, 'setPrimaryRole']);

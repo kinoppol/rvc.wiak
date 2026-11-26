@@ -71,13 +71,66 @@ final class RoomBooking
         return (int) Setting::get(self::SETTING_MEDIA_WORK, '0') <= 0;
     }
 
+    /** room_approvers arrives by its own migration; until then nobody is named. */
+    public static function namedApproversReady(): bool
+    {
+        static $ready = null;
+        if ($ready === null) {
+            $ready = (bool) Database::pdo()->query("SHOW TABLES LIKE 'room_approvers'")->fetchColumn();
+        }
+        return $ready;
+    }
+
+    /** @return array<int,array{id:int,full_name:string,is_active:int}> people an admin named as approvers for every room */
+    public static function namedApprovers(): array
+    {
+        if (!self::namedApproversReady()) {
+            return [];
+        }
+        return Database::pdo()->query(
+            'SELECT us.id, us.full_name, us.is_active
+             FROM room_approvers a JOIN users us ON us.id = a.user_id
+             ORDER BY us.full_name'
+        )->fetchAll();
+    }
+
+    public static function isNamedApprover(int $userId): bool
+    {
+        if (!self::namedApproversReady()) {
+            return false;
+        }
+        $st = Database::pdo()->prepare('SELECT 1 FROM room_approvers WHERE user_id = ? LIMIT 1');
+        $st->execute([$userId]);
+        return (bool) $st->fetchColumn();
+    }
+
+    /** @return bool false if they were already named */
+    public static function addNamedApprover(int $userId, ?int $addedBy): bool
+    {
+        $st = Database::pdo()->prepare('INSERT IGNORE INTO room_approvers (user_id, added_by) VALUES (?, ?)');
+        $st->execute([$userId, $addedBy]);
+        return $st->rowCount() > 0;
+    }
+
+    public static function removeNamedApprover(int $userId): bool
+    {
+        $st = Database::pdo()->prepare('DELETE FROM room_approvers WHERE user_id = ?');
+        $st->execute([$userId]);
+        return $st->rowCount() > 0;
+    }
+
     /**
-     * Approvers hold the role itself (not just have it active): a หัวหน้างาน of
-     * the media งาน who has switched to their ครู role can still approve.
+     * Admins, people an admin named (room_approvers), and the หัวหน้างาน/
+     * เจ้าหน้าที่ of the media งาน. Media-งาน approvers hold the role itself
+     * (not just have it active): a หัวหน้างาน of the media งาน who has
+     * switched to their ครู role can still approve.
      */
     public static function isApprover(int $userId): bool
     {
         if (in_array('admin', User::rolesFor($userId), true)) {
+            return true;
+        }
+        if (self::isNamedApprover($userId)) {
             return true;
         }
         $workId = self::mediaWorkId();
@@ -95,8 +148,28 @@ final class RoomBooking
         return (bool) $st->fetchColumn();
     }
 
-    /** @return array<int,array{id:int,full_name:string,role:string}> people of the media งาน who approve */
+    /**
+     * Everyone who approves besides admins: the named people first, then the
+     * media งาน's people not already listed. Inactive accounts are left out.
+     *
+     * @return array<int,array{id:int,full_name:string,role:string}>
+     */
     public static function approvers(): array
+    {
+        $out = [];
+        foreach (self::namedApprovers() as $a) {
+            if ((int) $a['is_active'] === 1) {
+                $out[(int) $a['id']] = ['id' => (int) $a['id'], 'full_name' => $a['full_name'], 'role' => 'ผู้อนุมัติที่กำหนด'];
+            }
+        }
+        foreach (self::mediaWorkApprovers() as $a) {
+            $out[(int) $a['id']] ??= $a;
+        }
+        return array_values($out);
+    }
+
+    /** @return array<int,array{id:int,full_name:string,role:string}> people of the media งาน who approve */
+    public static function mediaWorkApprovers(): array
     {
         $workId = self::mediaWorkId();
         if ($workId === null) {
